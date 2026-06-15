@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@source "./"; /* <-- EZ A KULCS! Azt mondja a Tailwindnek, hogy itt keresse a React komponenseket */
+
+body {
+  margin: 0;
+  background-color: #111827; /* Tailwind gray-900 - sötét háttér */
+  color: white;
+  overflow: hidden; /* Ne lehessen görgetni a tableten */
+  user-select: none; /* Ne lehessen kijelölni a szöveget (Kiosk mode) */
+}

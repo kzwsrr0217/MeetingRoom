@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    image: node:20-alpine
+    container_name: meetingroom_backend
+    working_dir: /app
+    # Felcsatoljuk a lokális backend mappát, de a node_modules-t a konténerben tartjuk
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    # Telepíti a csomagokat és elindítja a NestJS dev szervert
+    command: sh -c "npm install && npm run start:dev"
+    environment:
+      - NODE_ENV=development
+      - USE_MOCK_DATA=false # Konfiguráció magas szinten tartása (Design Rule)
+      - PORT=3000
+
+  frontend:
+    image: node:20-alpine
+    container_name: meetingroom_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    # Telepíti a csomagokat és elindítja a Vite dev szervert hálózati eléréssel
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - backend
