@@ -10,7 +10,7 @@ export interface RoomStatus {
   schedule: { start: string; end: string; title: string; organizer: string }[];
 }
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '../config';
 
 export const useRoomStatus = (roomId: string, refreshIntervalMs = 10000) => {
   const [status, setStatus] = useState<RoomStatus | null>(null);

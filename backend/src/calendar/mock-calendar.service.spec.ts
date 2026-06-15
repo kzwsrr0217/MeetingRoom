@@ -7,7 +7,7 @@ describe('MockCalendarService', () => {
     service = new MockCalendarService();
   });
 
-  describe('getRoomStatus', () => {
+  describe('getRoomStatus — time-based simulation', () => {
     it('Balaton is always occupied', async () => {
       const status = await service.getRoomStatus('MMH Balaton');
       expect(status.roomId).toBe('MMH Balaton');
@@ -56,7 +56,7 @@ describe('MockCalendarService', () => {
       expect(status.currentMeetingOrganizer).toBeNull();
     });
 
-    it('free room has nextMeetingStart, no end time', async () => {
+    it('free room has nextMeetingStart and no currentMeetingEnd', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
       const status = await service.getRoomStatus('MMH Séd');
       expect(status.currentMeetingEnd).toBeNull();
@@ -64,7 +64,7 @@ describe('MockCalendarService', () => {
       jest.useRealTimers();
     });
 
-    it('occupied room has currentMeetingEnd, no nextMeetingStart', async () => {
+    it('occupied room has currentMeetingEnd and no nextMeetingStart', async () => {
       const status = await service.getRoomStatus('MMH Balaton');
       expect(status.currentMeetingEnd).not.toBeNull();
       expect(status.nextMeetingStart).toBeNull();
@@ -76,15 +76,56 @@ describe('MockCalendarService', () => {
     });
   });
 
-  describe('bookRoom', () => {
-    it('always returns true in mock mode', async () => {
+  describe('bookRoom — in-memory state', () => {
+    it('returns true', async () => {
       const result = await service.bookRoom('MMH Séd', 30, 'Kovács Péter');
       expect(result).toBe(true);
     });
 
-    it('accepts optional startTime without error', async () => {
-      const result = await service.bookRoom('MMH Balaton', 60, 'Nagy Anna', '2026-01-01T14:00:00.000Z');
+    it('booking flips a free room to occupied immediately', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00')); // Séd is free at odd hour
+      await service.bookRoom('MMH Séd', 30, 'Kovács Péter');
+      const status = await service.getRoomStatus('MMH Séd');
+      expect(status.isOccupied).toBe(true);
+      expect(status.currentMeetingOrganizer).toBe('Kovács Péter');
+      expect(status.currentMeetingEnd).not.toBeNull();
+      jest.useRealTimers();
+    });
+
+    it('booking respects duration — room is free after it expires', async () => {
+      const start = new Date('2026-01-01T11:00:00');
+      jest.useFakeTimers().setSystemTime(start);
+      await service.bookRoom('MMH Séd', 30, 'Nagy Anna');
+
+      // 31 minutes later — booking has expired
+      jest.setSystemTime(new Date('2026-01-01T11:31:00'));
+      const status = await service.getRoomStatus('MMH Séd');
+      expect(status.isOccupied).toBe(false); // back to odd-hour = free
+      jest.useRealTimers();
+    });
+
+    it('booking sets the correct end time', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 60, 'Teszt');
+      const status = await service.getRoomStatus('MMH Tihany');
+      const end = new Date(status.currentMeetingEnd!);
+      expect(end.getHours()).toBe(12);
+      expect(end.getMinutes()).toBe(0);
+      jest.useRealTimers();
+    });
+
+    it('accepts optional startTime for future booking', async () => {
+      const result = await service.bookRoom('MMH Bakony', 60, 'Nagy Anna', '2026-01-01T14:00:00.000Z');
       expect(result).toBe(true);
+    });
+
+    it('each service instance has isolated booking state', async () => {
+      const other = new MockCalendarService();
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Séd', 30, 'Test');
+      const statusInOther = await other.getRoomStatus('MMH Séd');
+      expect(statusInOther.isOccupied).toBe(false); // other instance has no booking
+      jest.useRealTimers();
     });
   });
 });

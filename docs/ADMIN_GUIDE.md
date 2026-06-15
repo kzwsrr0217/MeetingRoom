@@ -286,6 +286,92 @@ Recommended Azure target. Additional prerequisites:
 
 ---
 
+## Full Admin Dashboard — Design Proposal
+
+The current `/admin` page is a read-only monitoring view. Below is a design for a full management interface that would let admins configure the system without touching code or config files.
+
+### Planned Features
+
+#### Room Management (CRUD)
+- **View all rooms** — the live status grid already exists
+- **Add a room** — form with name, display name, Outlook calendar email (for Graph API), floor/location tag
+- **Edit a room** — rename, reassign Outlook mailbox, deactivate without deleting
+- **Delete a room** — with confirmation; removes it from all kiosks immediately
+- **Room ordering** — drag-to-reorder for consistent display across devices
+
+#### Live Booking Management
+- **Active bookings table** — room, organizer, start, end, source (kiosk / Outlook)
+- **Force-end a meeting** — emergency cancel (writes to Graph API or clears mock state)
+- **Extend a meeting** — add 15/30 min to the current booking
+- **Create a booking** — admin books any room for any time slot from the dashboard
+
+#### Token Management UI
+- **Paste a new Graph token** — text field + "Apply" button, no file editing needed
+- **Token expiry countdown** — shows how many minutes remain on the current token
+- **One-click mock/live toggle** — no docker-compose editing needed
+
+#### Shared Configuration
+- **Preset organiser names** — currently per-browser localStorage; a backend endpoint would make these global across all kiosks and the admin page
+- **Kiosk assignment** — map a tablet's ID (device fingerprint or manually entered name) to its home room
+
+#### Audit Log
+- Last 100 bookings: timestamp, room, organizer, duration, source
+- Token refresh history
+
+---
+
+### Architecture Needed
+
+The current app is stateless (no database). To support the above:
+
+**1. Room config persistence**
+
+Add `backend/data/rooms.json` (git-ignored, lives in a Docker volume):
+```json
+[
+  { "id": "mmh-sed", "name": "MMH Séd", "calendarEmail": "sed@company.hu" },
+  { "id": "mmh-balaton", "name": "MMH Balaton", "calendarEmail": "balaton@company.hu" }
+]
+```
+
+New NestJS module: `RoomsModule` with `GET /api/rooms`, `POST /api/rooms`, `PATCH /api/rooms/:id`, `DELETE /api/rooms/:id`.
+
+The frontend's `config.ts` `ROOMS` array would be replaced by a `GET /api/rooms` call on app startup.
+
+**2. Shared preset names**
+
+Add `GET /api/config/preset-names` and `PUT /api/config/preset-names` endpoints. The frontend reads from the API instead of localStorage (falls back to defaults if offline).
+
+**3. Token management endpoint**
+
+Add `PUT /api/config/graph-token` — accepts a new token, writes it to the running service and to `.env`. Requires a simple admin secret header to prevent anyone from replacing the token.
+
+**4. Booking management**
+
+The Graph Calendar Service already has `bookRoom`. Add `DELETE /api/calendar/room/:roomId/booking/:eventId` to cancel, and `PATCH` to extend. In mock mode these just manipulate the in-memory store.
+
+**5. Audit log**
+
+An in-memory ring buffer (last 100 entries) exposed via `GET /api/audit`. No database needed for a POC; persist to a JSON file for a production version.
+
+---
+
+### Suggested Implementation Order
+
+| Priority | Feature | Effort |
+|----------|---------|--------|
+| High | Token management UI (paste + apply) | ~2h |
+| High | Room CRUD (JSON file backend) | ~4h |
+| High | Shared preset names (backend endpoint) | ~2h |
+| Medium | Active bookings table | ~3h |
+| Medium | Force-end / extend meeting | ~2h |
+| Low | Audit log | ~2h |
+| Low | Kiosk assignment map | ~3h |
+
+The token management UI and shared preset names give the biggest day-to-day value with the least work.
+
+---
+
 ## Security Notes
 
 - `backend/.env` contains credentials — never commit it to git (it is in `.gitignore`)
