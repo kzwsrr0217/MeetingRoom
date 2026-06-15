@@ -2,7 +2,7 @@
 
 ## What is this?
 
-The MeetingRoom kiosk is a tablet mounted outside (or inside) each meeting room. It shows whether the room is currently free or occupied, displays today's meeting schedule, and lets you book the room on the spot.
+The MeetingRoom kiosk is a tablet mounted outside each meeting room. It shows whether the room is currently free or occupied, displays today's meeting schedule, and lets you book the room on the spot.
 
 ---
 
@@ -10,18 +10,18 @@ The MeetingRoom kiosk is a tablet mounted outside (or inside) each meeting room.
 
 ### Free Room
 
-The screen shows a **green** status card with "SZABAD" (Free). You can see:
+The screen shows a **green** status card with **"SZABAD"** (Free). You can see:
 - When the next meeting starts (if any)
 - Today's schedule on the timeline at the bottom
 
 ### Occupied Room
 
-The screen shows a **red** status card with "FOGLALT" (Occupied). You can see:
+The screen shows a **red** status card with **"FOGLALT"** (Occupied). You can see:
 - The name of the current meeting
-- Who organized it
-- When the meeting ends
+- Who organised it
+- When the meeting ends, with a live countdown ("Még X perc")
 
-The status updates automatically every 10 seconds.
+The status updates automatically every 10 seconds. A small green dot labelled **"Élő"** in the top-right corner confirms the kiosk is connected and live.
 
 ---
 
@@ -29,18 +29,18 @@ The status updates automatically every 10 seconds.
 
 ### Instant Booking (the room is free right now)
 
-1. Tap the **"Foglalom most"** (Book now) button
-2. The room is booked for **15 minutes** in your Outlook calendar
-3. The status immediately changes to "Occupied"
-
-> **Note:** Bookings appear in the calendar under the name shown on the kiosk. Contact IT if the name is wrong.
+1. Tap **"Azonnali foglalás"** (Book now) on the green status card
+2. A booking dialog opens — choose how long you need: **15, 30, or 60 minutes**
+3. Choose your name from the list (or tap **"Más név..."** to type a custom name)
+4. Tap **"Megerősítés"** (Confirm)
+5. A confirmation message appears and the room status updates
 
 ### Booking in Advance (timeline booking)
 
-1. Look at the **timeline** at the bottom of the screen — it shows today's schedule as blocks
-2. Tap an empty (free) time slot on the timeline
-3. A booking dialog appears — choose duration: **15, 30, or 60 minutes**
-4. Confirm the booking
+1. Look at the **timeline** at the bottom — it shows today's schedule as blocks
+2. Tap an empty (grey) time slot
+3. The same booking dialog appears — choose duration and your name
+4. Tap **"Megerősítés"**
 
 The new event appears in the timeline immediately.
 
@@ -48,30 +48,25 @@ The new event appears in the timeline immediately.
 
 ## Checking In
 
-If you are the attendee of the current meeting:
-1. Tap **"Bejelentkezés"** (Check-in)
-2. Your presence is confirmed
+If you are the organiser or attendee of the current meeting:
 
-> Currently this is a demonstration feature — check-in is logged but does not change the meeting status.
+1. Tap **"Check-in"** on the red status card
+2. A confirmation tick appears — your presence is recorded
+
+> Currently check-in is logged for demonstration purposes. It does not modify the meeting in Outlook.
 
 ---
 
 ## Viewing Other Rooms
 
-You can browse the availability of other rooms from any kiosk:
+You can check the availability of other rooms from any kiosk:
 
-1. Tap the **room name** in the header (top of the screen)
-2. A list of all available rooms appears
-3. Tap any room to see its current status
+1. Tap **"Tárgyalók Állapota"** (Room Status) in the top-right corner
+2. A full-screen panel shows all rooms
+3. Tap any room to see its current status on that room's kiosk view
 
 > A blue banner at the top warns you that you are viewing a different room.  
-> The screen returns to the home room automatically after **60 seconds**, or tap **"Vissza az alapértelmezetthez"** (Back to default) to return immediately.
-
----
-
-## Weekly View
-
-Tap the **"Heti nézet"** (Weekly view) button to see the full week's schedule for the current room.
+> The screen returns to this room's home view automatically after **60 seconds**, or tap **"Vissza"** (Back) immediately.
 
 ---
 
@@ -80,16 +75,16 @@ Tap the **"Heti nézet"** (Weekly view) button to see the full week's schedule f
 | What you see | What it means | What to do |
 |---|---|---|
 | "Szinkronizálás..." spinning screen | Backend is starting up | Wait 10–30 seconds |
-| "Nem sikerült kapcsolódni a szerverhez" | Backend is unreachable | Contact IT |
-| "Hiba" red error screen | API error | Note the message and contact IT |
+| "Kapcsolódási hiba" red error screen | Backend is unreachable | The screen retries automatically; contact IT if it persists |
 | Room shows free but a meeting is in progress | Graph API token may have expired | Contact IT to refresh the token |
 | Booking appears to succeed but no calendar event appears | Token expired or wrong calendar | Contact IT |
+| Screen is showing the wrong room | Home room not set correctly | Long-press the clock (3 seconds) to reset and re-select the room |
 
 ---
 
 ## Contact
 
-For technical issues, contact your IT administrator. Provide:
+For technical issues contact your IT administrator. Please provide:
 - Which kiosk / which room
 - What you were trying to do
-- What the screen displayed
+- What the screen showed

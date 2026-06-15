@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers deployment, configuration, token management, and future infrastructure options for the MeetingRoom kiosk system.
+This guide covers deployment, configuration, token management, and infrastructure options for the MeetingRoom kiosk system.
 
 **Current state:** POC running on Docker Desktop (Windows).  
 **Roadmap:** Podman → Kubernetes → OpenShift → Azure Container Apps.
@@ -27,7 +27,7 @@ This guide covers deployment, configuration, token management, and future infras
 | Port | Service |
 |------|---------|
 | 3000 | Backend API (NestJS) |
-| 5173 | Frontend UI (Vite) |
+| 5173 | Frontend UI (Vite) — kiosk at `/`, admin at `/admin` |
 
 Ensure these ports are not occupied by other services on the host.
 
@@ -41,7 +41,27 @@ docker compose logs -f     # Follow logs
 docker compose down        # Stop
 ```
 
-**First start:** Takes 2–4 minutes for `npm install` to run inside the containers. Subsequent starts are fast (packages are cached in Docker volumes).
+**First start:** Takes 2–4 minutes for `npm install` to run inside the containers. Subsequent starts are fast.
+
+---
+
+## Admin Dashboard
+
+A desktop-optimised admin view is available at:
+
+```
+http://localhost:5173/admin
+```
+
+The admin dashboard shows:
+
+- **Live room status grid** — all rooms polled every 15 seconds, with occupancy, end time, and a link to each room's kiosk view
+- **Backend health pill** — online/offline indicator + current mode (mock or graph)
+- **Preset names** — manage the list of quick-select organiser names shown in the booking modal (stored in `localStorage` of the admin browser)
+- **System info** — API URL, kiosk URL, per-room kiosk links, token status warning in graph mode
+- **Tablet reset instructions** — how to clear a tablet's room selection via long-press
+
+> **Note:** Preset names are stored in `localStorage` per browser. Names set in the admin dashboard do not automatically propagate to the tablets. Each tablet manages its own list (also configurable from the tablet itself via the booking modal).
 
 ---
 
@@ -50,17 +70,14 @@ docker compose down        # Stop
 All backend configuration lives in `backend/.env`. This file is mounted into the container at runtime.
 
 ```env
-USE_MOCK_DATA=false       # "true" = simulated data, no Azure needed
+USE_MOCK_DATA=true        # "true" = simulated data, no Azure needed
 PORT=3000
-
-AZURE_TENANT_ID=          # Microsoft Entra tenant ID
-AZURE_CLIENT_ID=          # App registration client ID  
-AZURE_CLIENT_SECRET=      # App registration secret
+GRAPH_TEMP_TOKEN=         # Paste a fresh delegated Graph token here
 ```
 
-> **POC caveat:** The Azure AD credentials above are currently placeholder values. The Graph API connection uses a manually refreshed 1-hour token (see below). The `.env` file's Azure values are not yet used by the application.
+> **Important:** The `USE_MOCK_DATA` value in `docker-compose.yml`'s `environment:` block takes precedence over `.env`. Edit `docker-compose.yml` directly when running in Docker.
 
-After changing `.env`:
+After changing `.env` or `docker-compose.yml`:
 ```powershell
 docker compose restart backend
 ```
@@ -69,7 +86,7 @@ docker compose restart backend
 
 ## Microsoft Graph Token Management (Current POC Workflow)
 
-Because proper Azure AD app registration is not yet available, a manually obtained delegated token is used. This token expires in approximately 1 hour.
+Because Azure AD app registration is not yet available, a manually obtained delegated token is used. This token expires in approximately 60–75 minutes.
 
 ### How to Refresh the Token
 
@@ -77,41 +94,45 @@ Because proper Azure AD app registration is not yet available, a manually obtain
 2. Click **Sign in** — use the Microsoft account that owns the meeting room calendars
 3. After sign-in, click your **profile picture** (top right) → **Access token**
 4. Copy the entire token string
-5. Open the file: `backend\src\calendar\graph-calendar.service.ts`
-6. Find the `TEMP_TOKEN` constant (line ~12) and replace its value with the new token
-7. Save the file — NestJS hot-reload will pick it up automatically if the container is running with `start:dev`
-
-If hot-reload is not active:
-```powershell
-docker compose restart backend
-```
+5. Open `backend\.env` and paste it:
+   ```env
+   GRAPH_TEMP_TOKEN=eyJ0eXAiOiJKV1Qi...
+   USE_MOCK_DATA=false
+   ```
+6. Restart the backend:
+   ```powershell
+   docker compose restart backend
+   ```
 
 ### Token Lifetime
 
 - Standard Microsoft Graph delegated tokens: **60–75 minutes**
-- The application will return HTTP errors from the Graph API once the token expires
-- The frontend will display "Nem sikerült kapcsolódni a szerverhez" (connection error)
+- When the token expires, the frontend will show "Kapcsolódási hiba" (connection error)
+- The admin dashboard will show a warning badge next to the mode indicator when in graph mode
 
 ### Future: Proper Token Refresh
 
-When Azure AD app registration becomes available, the MSAL library (`@azure/msal-node`) already installed in the backend will handle automatic token acquisition and refresh. See [Improvements](IMPROVEMENTS.md) for the implementation plan.
+When Azure AD app registration becomes available, the MSAL library (`@azure/msal-node`) already installed in the backend will handle automatic token acquisition and refresh. See [IMPROVEMENTS.md](IMPROVEMENTS.md) for the implementation plan.
 
 ---
 
 ## Switching to Mock Mode
 
-For demos where network connectivity to Microsoft 365 is unavailable or token has expired, switch to mock mode:
+For demos where network connectivity to Microsoft 365 is unavailable or the token has expired:
 
-1. Edit `backend/.env`:
-   ```env
-   USE_MOCK_DATA=true
+1. Edit `docker-compose.yml`:
+   ```yaml
+   environment:
+     - USE_MOCK_DATA=true
    ```
-2. Restart backend:
+2. Restart the backend:
    ```powershell
    docker compose restart backend
    ```
 
-Mock mode needs no internet access and never expires. Room behavior in mock mode:
+Mock mode requires no internet access and never expires. The admin dashboard shows a yellow **"mock"** badge.
+
+Room behavior in mock mode:
 
 | Room contains | Status |
 |---------------|--------|
@@ -138,63 +159,91 @@ docker compose logs --tail=100 frontend
 docker compose logs -f
 ```
 
-The backend logs all API requests and Graph API calls, including token errors.
+The backend logs all API requests, mock bookings, and Graph API calls including token errors.
+
+### Health endpoint
+
+```powershell
+Invoke-WebRequest -Uri "http://localhost:3000/api/health" | Select-Object -ExpandProperty Content
+```
+
+Returns: `{"status":"ok","mode":"mock","timestamp":"..."}` — confirms the backend is running and shows the current mode.
 
 ---
 
-## Kiosk Display Setup (Tablet)
+## Kiosk Tablet Setup
 
-The frontend is designed as a full-screen kiosk for a 10" landscape tablet.
+### Network Requirements
 
-**Browser setup (recommended):**
+The tablets and the Docker Desktop host must be on the **same network**. Find the host IP:
+
+```powershell
+ipconfig
+# Look for "IPv4 Address" under your Wi-Fi or Ethernet adapter
+```
+
+Use `http://<host-ip>:5173` on the tablets instead of `http://localhost:5173`.
+
+### First-Run Setup (per tablet)
+
+On first visit, the kiosk shows a full-screen room picker — **"Melyik tárgyaló ez a kioszk?"** (Which meeting room is this kiosk?). Select the room. The choice is saved to the browser's `localStorage` and persists across reloads.
+
+**Steps for each tablet:**
 1. Open Chrome or Edge on the tablet
 2. Navigate to `http://<host-ip>:5173`
-3. Press **F11** for full-screen
-4. For permanent kiosk mode (Chrome), create a shortcut with:
-   ```
-   chrome.exe --kiosk --app=http://<host-ip>:5173
-   ```
+3. Select the room from the picker
+4. Press F11 (or use Chrome kiosk mode) for full screen
 
-**Setting the room for a specific tablet:**
-
-Each tablet displays one room by default. The default room is `MMH Séd`. To configure a tablet for a different room, navigate to:
+**Chrome kiosk mode shortcut** (create on the tablet desktop):
 ```
-http://<host-ip>:5173/?room=MMH%20Balaton
+chrome.exe --kiosk --app=http://<host-ip>:5173
 ```
 
-The URL parameter `?room=<name>` sets the displayed room. Users can still navigate to other rooms from the UI (auto-returns after 60 seconds).
+### Resetting a Tablet's Room
 
-**Host IP for tablet access:**
+If a tablet needs to be re-assigned to a different room:
 
-If the tablet is on the same network as the Docker Desktop host:
-```powershell
-# Find the host IP
-ipconfig
-# Look for "IPv4 Address" under your Wi-Fi or LAN adapter
-```
+1. On the kiosk screen, **hold the clock area for 3 seconds**
+2. The room is cleared from `localStorage` and the setup screen appears
+3. Select the new room
 
-Use that IP instead of `localhost` when accessing from the tablet.
+Alternatively, from a keyboard:
+1. Open browser developer tools (F12)
+2. Run: `localStorage.removeItem('meetingroom_home'); location.reload()`
+
+### PWA Install
+
+The kiosk supports installation as a Progressive Web App:
+- Chrome on Android/iOS: Share → Add to Home Screen
+- Chrome on desktop: Address bar → Install icon
+
+This gives a standalone fullscreen app experience without browser chrome.
 
 ---
 
 ## Updating the Application
 
-### Code changes (hot-reload — no restart needed)
+### After editing source files (hot-reload)
 
-Both backend (NestJS) and frontend (Vite) run in watch mode and reload on file save.
+Both NestJS and Vite run in watch mode inside Docker. Changes to source files trigger automatic reload.
 
-### Dependency changes (`package.json`)
+> **Windows caveat:** Vite's HMR does not always fire on Windows due to inotify limitations in Docker Desktop. If the frontend does not update after saving a file, run:
+> ```powershell
+> docker restart meetingroom_frontend
+> ```
+
+### After changing dependencies (`package.json`)
 
 ```powershell
 docker compose down
 docker compose up
-# npm install runs automatically on start
+# npm install runs automatically on container start
 ```
 
 ### Full rebuild
 
 ```powershell
-docker compose down -v   # Also removes named volumes
+docker compose down -v   # Also removes cached node_modules volumes
 docker compose up
 ```
 
@@ -202,53 +251,44 @@ docker compose up
 
 ## Backup & Recovery
 
-The application has no database — all data is in Microsoft Outlook. There is nothing to back up except:
+The application has no database — all meeting data lives in Microsoft Outlook. Back up:
 
-- `backend/.env` — credentials and configuration
-- `backend/src/calendar/graph-calendar.service.ts` — contains the current `TEMP_TOKEN`
+- `backend/.env` — contains `GRAPH_TEMP_TOKEN` and mode configuration
+
+Source code is in git: `https://github.com/kzwsrr0217/MeetingRoom`
 
 ---
 
 ## Future Deployment Options
 
-### Podman (same host, rootless containers)
+### Podman
 
-Podman is compatible with Docker Compose via `podman-compose` or the Docker Compose plugin.
-
+Compatible with Docker Compose via `podman-compose`:
 ```bash
-# Install podman-compose
 pip install podman-compose
-
-# Run
 podman-compose up
 ```
 
-Main difference: Podman is rootless by default. Ports below 1024 require additional configuration. Ports 3000 and 5173 work without changes.
-
 ### Kubernetes / OpenShift
 
-See [Improvements](IMPROVEMENTS.md#kubernetes--openshift) for the production-readiness checklist before deploying to Kubernetes. Key prerequisites:
-
-1. Fix `VITE_API_URL` to use environment variable (currently hardcoded)
-2. Implement MSAL token refresh (eliminate hardcoded token)
-3. Build production Docker images (not dev servers)
-4. Create Kubernetes manifests (Deployment, Service, ConfigMap, Secret)
+Key prerequisites before deploying:
+1. Build production Docker images (not dev servers with hot-reload)
+2. Implement MSAL token refresh (eliminate manual `GRAPH_TEMP_TOKEN`)
+3. Externalise `API_BASE` in `frontend/src/config.ts` as a build-time env var
+4. Create Deployment, Service, ConfigMap, and Secret manifests
 
 ### Azure Container Apps
 
-Recommended Azure target. Supports Docker Compose-like configuration via Azure Container Apps environments.
-
-Prerequisites same as Kubernetes, plus:
-- Azure subscription
+Recommended Azure target. Additional prerequisites:
 - Azure Container Registry for image storage
-- Azure Key Vault for secrets (replace `.env` file)
-- Managed Identity for Graph API access (eliminates client secret)
+- Azure Key Vault for `GRAPH_TEMP_TOKEN` secret
+- Managed Identity for Graph API access (eliminates client secret entirely)
 
 ---
 
 ## Security Notes
 
-- The `backend/.env` file contains credentials. Do not commit it to git (it is in `.gitignore`).
-- The `TEMP_TOKEN` in `graph-calendar.service.ts` is a bearer token. Do not commit it to git either — treat the file as sensitive while the hardcoded token is present.
-- CORS is currently enabled for all origins in the backend (`main.ts`). Restrict this before production deployment.
-- The check-in endpoint (`POST /api/calendar/room/:roomId/checkin`) has no authentication. Any HTTP client can call it.
+- `backend/.env` contains credentials — never commit it to git (it is in `.gitignore`)
+- `GRAPH_TEMP_TOKEN` is a bearer token with delegated user permissions — treat it as a password
+- CORS is currently enabled for all origins. Restrict to the frontend origin before production deployment
+- The check-in endpoint (`POST /api/calendar/room/:roomId/checkin`) has no authentication — any HTTP client can call it

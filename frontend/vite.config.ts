@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
-// A -swc végződést levettük:
-import react from '@vitejs/plugin-react' 
+import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
@@ -8,4 +7,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test-setup.ts',
+  },
 })
