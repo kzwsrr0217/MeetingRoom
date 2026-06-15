@@ -1,0 +1,18 @@
+{
+  "name": "MMH Kioszk",
+  "short_name": "Kioszk",
+  "description": "Tárgyaló foglaltsági kioszk",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

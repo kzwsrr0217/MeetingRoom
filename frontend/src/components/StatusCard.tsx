@@ -4,11 +4,11 @@ import type { RoomStatus } from '../hooks/useRoomStatus';
 
 interface Props {
   status: RoomStatus;
-  onBookNow: () => void;
+  onOpenBookingModal: () => void;
   onCheckIn: () => void;
 }
 
-export const StatusCard = ({ status, onBookNow, onCheckIn }: Props) => {
+export const StatusCard = ({ status, onOpenBookingModal, onCheckIn }: Props) => {
   // LocalStorage-ból olvassuk ki, hogy be van-e csekkolva (így frissítéskor megmarad)
   const [hasCheckedIn, setHasCheckedIn] = useState(() => {
     return localStorage.getItem(`checkin_${status.roomId}`) === 'true';
@@ -62,9 +62,9 @@ export const StatusCard = ({ status, onBookNow, onCheckIn }: Props) => {
         )}
 
         {isFree && (
-          <button 
-            onClick={onBookNow}
-            className="mt-8 px-10 py-5 bg-white text-green-700 rounded-2xl font-black text-xl shadow-xl hover:bg-gray-100 uppercase"
+          <button
+            onClick={onOpenBookingModal}
+            className="mt-8 px-10 py-5 bg-white text-green-700 rounded-2xl font-black text-xl shadow-xl hover:bg-gray-100 uppercase cursor-pointer"
           >
             Azonnali foglalás
           </button>

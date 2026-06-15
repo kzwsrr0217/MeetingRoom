@@ -1,41 +1,44 @@
 import { useState } from 'react';
 import type { RoomStatus } from '../hooks/useRoomStatus';
+import { ROOMS } from '../config';
 import { Header } from './Header';
 import { StatusCard } from './StatusCard';
 import { MeetingDetails } from './MeetingDetails';
 import { Timeline } from './Timeline';
+import { BookingModal } from './BookingModal';
 
 interface Props {
   status: RoomStatus;
   roomName: string;
+  homeRoom: string;
   onBookRoom: (durationMinutes: number, organizer: string, startTime?: Date) => Promise<boolean>;
 }
 
-export const RoomDisplay = ({ status, roomName, onBookRoom }: Props) => {
+export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) => {
   const [showOtherRooms, setShowOtherRooms] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const HOME_ROOM = 'MMH Séd';
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const allRooms = ['MMH Séd', 'MMH Balaton', 'MMH Mars', 'MMH Tihany', 'MMH Bakony', 'MMH Kis Balaton'];
-  const otherRooms = allRooms.filter(name => name !== roomName);
+  const otherRooms = ROOMS.filter(name => name !== roomName);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleBookNow = async () => {
-    showToast('Kapcsolódás az Outlookhoz...', 'success');
-    try {
-      const success = await onBookRoom(15, 'Tablet Felhasználó');
-      showToast(success ? 'Sikeres azonnali foglalás!' : 'A terem már foglalt!', success ? 'success' : 'error');
-    } catch {
-      showToast('Hálózati hiba! Ellenőrizd a backendet.', 'error');
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
     }
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-900 antialiased relative overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-gray-900 antialiased relative overflow-hidden cursor-none select-none">
 
       {/* Toast */}
       {toast && (
@@ -53,13 +56,39 @@ export const RoomDisplay = ({ status, roomName, onBookRoom }: Props) => {
           : 'shadow-[inset_0_0_150px_rgba(34,197,94,0.8)]'
       }`} />
 
-      {/* Other rooms button */}
-      <button
-        onClick={() => setShowOtherRooms(true)}
-        className="absolute top-24 right-8 z-20 px-6 py-4 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-gray-200 rounded-2xl font-bold hover:bg-gray-700 shadow-xl active:scale-95 transition-transform"
-      >
-        Tárgyalók Állapota
-      </button>
+      {/* Top-right controls */}
+      <div className="absolute top-6 right-8 z-20 flex items-center gap-3">
+        {/* Live pulse dot */}
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-700">
+          <span className={`w-2.5 h-2.5 rounded-full ${status.isOccupied ? 'bg-red-400' : 'bg-green-400'} animate-pulse`} />
+          <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Élő</span>
+        </div>
+
+        {/* Other rooms button */}
+        <button
+          onClick={() => setShowOtherRooms(true)}
+          className="px-6 py-3 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-gray-200 rounded-2xl font-bold hover:bg-gray-700 shadow-xl active:scale-95 transition-transform cursor-pointer"
+        >
+          Tárgyalók Állapota
+        </button>
+
+        {/* Fullscreen button */}
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Kilépés teljes képernyőből' : 'Teljes képernyő'}
+          className="p-3 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-gray-400 rounded-2xl hover:bg-gray-700 hover:text-white active:scale-95 transition-all cursor-pointer"
+        >
+          {isFullscreen ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4H4m0 5h5m6-5h5v5m0-5h-5m5 15h-5v5m0-5h5M4 15h5v5m-5 0v-5" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {/* Main layout */}
       <div className={`grow flex justify-between p-12 pr-20 border-l-16 transition-colors duration-500 ${
@@ -77,7 +106,7 @@ export const RoomDisplay = ({ status, roomName, onBookRoom }: Props) => {
         <div className="flex flex-col justify-center min-w-105 z-10">
           <StatusCard
             status={status}
-            onBookNow={handleBookNow}
+            onOpenBookingModal={() => setShowBookingModal(true)}
             onCheckIn={() => showToast('Sikeres Check-in!', 'success')}
           />
         </div>
@@ -90,6 +119,14 @@ export const RoomDisplay = ({ status, roomName, onBookRoom }: Props) => {
         onToast={showToast}
       />
 
+      {/* Booking modal */}
+      <BookingModal
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        onBook={onBookRoom}
+        onToast={showToast}
+      />
+
       {/* Modal: Other rooms */}
       {showOtherRooms && (
         <div
@@ -99,21 +136,31 @@ export const RoomDisplay = ({ status, roomName, onBookRoom }: Props) => {
           <div className="max-w-6xl mx-auto w-full" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-12">
               <h2 className="text-6xl font-black text-white uppercase">MMH Tárgyalók</h2>
-              <button onClick={() => setShowOtherRooms(false)} className="text-7xl text-gray-600 hover:text-white">&times;</button>
+              <button
+                onClick={() => setShowOtherRooms(false)}
+                className="text-7xl text-gray-600 hover:text-white cursor-pointer"
+              >
+                &times;
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               {otherRooms.map(name => (
                 <div
                   key={name}
-                  onClick={() => { window.location.search = `?room=${encodeURIComponent(name)}`; }}
+                  onClick={() => {
+                    setShowOtherRooms(false);
+                    window.location.search = `?room=${encodeURIComponent(name)}`;
+                  }}
                   className={`p-8 border rounded-4xl flex justify-between items-center transition-all cursor-pointer group ${
-                    name === HOME_ROOM
+                    name === homeRoom
                       ? 'bg-blue-900/20 border-blue-500'
                       : 'bg-gray-800/40 border-gray-700 hover:border-gray-500'
                   }`}
                 >
                   <p className="text-3xl font-black text-white group-hover:text-blue-400">{name}</p>
-                  <div className="px-6 py-3 bg-gray-700 text-white font-black rounded-xl text-xs uppercase">Megtekintés</div>
+                  <div className="px-6 py-3 bg-gray-700 text-white font-black rounded-xl text-xs uppercase">
+                    Megtekintés
+                  </div>
                 </div>
               ))}
             </div>
