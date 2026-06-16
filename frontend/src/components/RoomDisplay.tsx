@@ -228,7 +228,6 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
       <UpcomingStrip schedule={status.schedule} />
 
       <Timeline
-        roomId={roomName}
         currentStatus={status}
         onBookRoom={onBookRoom}
         onToast={showToast}

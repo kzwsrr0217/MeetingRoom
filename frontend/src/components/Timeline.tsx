@@ -10,13 +10,12 @@ interface CalendarEvent {
 }
 
 interface Props {
-  roomId: string;
   currentStatus: RoomStatus;
   onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
 }
 
-export const Timeline = ({ roomId, currentStatus, onBookRoom, onToast }: Props) => {
+export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [bookingSlot, setBookingSlot] = useState<Date | null>(null);
 
