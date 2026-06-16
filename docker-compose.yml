@@ -8,6 +8,8 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
+      # Explicit bind-mount so rooms.json + config.json survive "docker compose down" and re-up
+      - ./backend/data:/app/data
     ports:
       - "3000:3000"
     command: sh -c "npm install && npm run start:dev"

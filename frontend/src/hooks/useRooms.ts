@@ -8,18 +8,25 @@ export interface Room {
   order: number;
 }
 
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — propagates admin room changes to kiosks
+
 // Returns the room list — immediately the static fallback, then updated from the API.
-// Components never see a loading state; they just get an updated list when it arrives.
+// Polls every 5 minutes so adds/renames/deletes from the admin page propagate automatically.
 export const useRooms = () => {
   const [rooms, setRooms] = useState<Room[]>(
     STATIC_ROOMS.map((name, i) => ({ id: name, name, calendarEmail: '', order: i })),
   );
 
   useEffect(() => {
-    fetch(`${API_BASE}/rooms`)
-      .then(r => r.json())
-      .then((data: Room[]) => setRooms(data))
-      .catch(() => {}); // keep static fallback if backend unreachable
+    const fetchRooms = () =>
+      fetch(`${API_BASE}/rooms`)
+        .then(r => r.json())
+        .then((data: Room[]) => setRooms(data))
+        .catch(() => {});
+
+    fetchRooms();
+    const id = setInterval(fetchRooms, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
   }, []);
 
   return rooms;

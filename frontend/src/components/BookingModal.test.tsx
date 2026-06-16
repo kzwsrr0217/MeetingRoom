@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BookingModal } from './BookingModal';
 import { STORAGE_KEY_PRESET_NAMES, DEFAULT_PRESET_ORGANIZERS } from '../config';
 
@@ -8,6 +8,12 @@ const noop = () => {};
 describe('BookingModal', () => {
   beforeEach(() => {
     localStorage.clear();
+    // Prevent usePresetNames hook from making real network calls in tests
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no network in tests')));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders nothing when isOpen is false', () => {

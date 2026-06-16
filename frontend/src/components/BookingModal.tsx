@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DEFAULT_PRESET_ORGANIZERS, STORAGE_KEY_PRESET_NAMES } from '../config';
+import { usePresetNames } from '../hooks/usePresetNames';
 
 interface Props {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export const BookingModal = ({ isOpen, onClose, onBook, onToast }: Props) => {
+  const presetNames = usePresetNames();
   const [duration, setDuration] = useState(30);
   const [selectedName, setSelectedName] = useState('');
   const [customName, setCustomName] = useState('');
@@ -16,10 +17,6 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
-
-  const presetNames: string[] =
-    JSON.parse(localStorage.getItem(STORAGE_KEY_PRESET_NAMES) ?? 'null') ??
-    DEFAULT_PRESET_ORGANIZERS;
 
   const organizer = showCustom ? customName.trim() : selectedName;
   const canBook = organizer.length > 0;
