@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Logger, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Logger, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CalendarService } from './calendar.service';
 import { RoomStatus } from './domain/room-status.model';
@@ -24,7 +24,19 @@ export class CalendarController {
 
   @Get('calendar/room/:roomId/status')
   async getStatus(@Param('roomId') roomId: string): Promise<RoomStatus> {
-    return this.calendarService.getRoomStatus(roomId);
+    try {
+      return await this.calendarService.getRoomStatus(roomId);
+    } catch (err: any) {
+      // Microsoft Graph returns 401 when the delegated token is expired or invalid
+      const code = err?.statusCode ?? err?.code ?? err?.status;
+      if (code === 401 || code === 403) {
+        throw new HttpException(
+          'A Graph API token lejárt vagy érvénytelen. Frissítse az /admin oldalon.',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      throw new HttpException('A szobastátusz lekérése sikertelen.', HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
 
   @Post('calendar/room/:roomId/book')

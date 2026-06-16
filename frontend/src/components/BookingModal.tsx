@@ -4,11 +4,12 @@ import { usePresetNames } from '../hooks/usePresetNames';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onBook: (durationMinutes: number, organizer: string) => Promise<boolean>;
+  onBook: (durationMinutes: number, organizer: string) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
+  startTime?: Date; // When set, shows "Előrefoglalás: HH:MM" and adjusts end-time toast
 }
 
-export const BookingModal = ({ isOpen, onClose, onBook, onToast }: Props) => {
+export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Props) => {
   const presetNames = usePresetNames();
   const [duration, setDuration] = useState(30);
   const [selectedName, setSelectedName] = useState('');
@@ -24,11 +25,14 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast }: Props) => {
   const handleBook = async () => {
     if (!canBook || isSubmitting) return;
     setIsSubmitting(true);
-    onToast('Kapcsolódás az Outlookhoz...', 'success');
-    const success = await onBook(duration, organizer);
+    onToast('Foglalás rögzítése...', 'success');
+
+    const error = await onBook(duration, organizer);
     setIsSubmitting(false);
-    if (success) {
-      const end = new Date(Date.now() + duration * 60000);
+
+    if (error === null) {
+      const base = startTime ?? new Date();
+      const end = new Date(base.getTime() + duration * 60000);
       const endStr = end.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
       onToast(`Foglalás rögzítve! Vége: ${endStr}`, 'success');
       setSelectedName('');
@@ -37,9 +41,11 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast }: Props) => {
       setDuration(30);
       onClose();
     } else {
-      onToast('A foglalás nem sikerült!', 'error');
+      onToast(error, 'error');
     }
   };
+
+  const isFuture = !!startTime;
 
   return (
     <div
@@ -50,7 +56,15 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast }: Props) => {
         className="bg-gray-900 p-12 rounded-[3rem] max-w-2xl w-full mx-4 border border-green-500/60 shadow-2xl shadow-green-900/20"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-4xl font-black text-white mb-10 uppercase tracking-tight">Terem foglalása</h2>
+        <h2 className="text-4xl font-black text-white mb-1 uppercase tracking-tight">
+          {isFuture ? 'Előrefoglalás' : 'Terem foglalása'}
+        </h2>
+        {isFuture && (
+          <p className="text-green-400 text-lg font-bold mb-8">
+            Kezdés: {startTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
+        {!isFuture && <div className="mb-10" />}
 
         {/* Duration */}
         <p className="text-sm text-gray-500 uppercase tracking-widest mb-3">Időtartam</p>

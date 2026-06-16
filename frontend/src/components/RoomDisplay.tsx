@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { RoomStatus } from '../hooks/useRoomStatus';
+import { useRoomStatus, type RoomStatus } from '../hooks/useRoomStatus';
 import { useRoomNames } from '../hooks/useRooms';
 import { Header } from './Header';
 import { StatusCard } from './StatusCard';
@@ -11,8 +11,85 @@ interface Props {
   status: RoomStatus;
   roomName: string;
   homeRoom: string;
-  onBookRoom: (durationMinutes: number, organizer: string, startTime?: Date) => Promise<boolean>;
+  onBookRoom: (durationMinutes: number, organizer: string, startTime?: Date) => Promise<string | null>;
 }
+
+// Live status card shown in the "other rooms" modal
+const OtherRoomCard = ({
+  name,
+  homeRoom,
+  onClick,
+}: {
+  name: string;
+  homeRoom: string;
+  onClick: () => void;
+}) => {
+  const { status } = useRoomStatus(name, 15000);
+
+  const occupied = status?.isOccupied ?? null;
+  const endTime = status?.currentMeetingEnd ? new Date(status.currentMeetingEnd) : null;
+  const minutesLeft = endTime
+    ? Math.max(0, Math.ceil((endTime.getTime() - Date.now()) / 60000))
+    : null;
+
+  return (
+    <div
+      onClick={onClick}
+      className={`p-8 border rounded-4xl flex flex-col gap-3 transition-all cursor-pointer group ${
+        name === homeRoom
+          ? 'bg-blue-900/20 border-blue-500'
+          : occupied === true
+          ? 'bg-red-950/20 border-red-800/60 hover:border-red-600'
+          : occupied === false
+          ? 'bg-green-950/15 border-green-900/40 hover:border-green-700'
+          : 'bg-gray-800/40 border-gray-700 hover:border-gray-500'
+      }`}
+    >
+      <div className="flex justify-between items-center">
+        <p className="text-3xl font-black text-white group-hover:text-blue-400 transition-colors">
+          {name}
+        </p>
+        <div
+          className={`px-6 py-2 font-black rounded-xl text-sm uppercase tracking-wider ${
+            occupied === null
+              ? 'bg-gray-700 text-gray-400'
+              : occupied
+              ? 'bg-red-600/80 text-white'
+              : 'bg-green-600/80 text-white'
+          }`}
+        >
+          {occupied === null ? '...' : occupied ? 'Foglalt' : 'Szabad'}
+        </div>
+      </div>
+
+      {/* Meeting detail when occupied */}
+      {occupied && status && (
+        <div className="text-sm text-gray-400 leading-snug">
+          {status.currentMeetingTitle && (
+            <p className="text-white/80 font-bold truncate">{status.currentMeetingTitle}</p>
+          )}
+          {endTime && minutesLeft !== null && (
+            <p className="text-orange-400">
+              Vége: {endTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+              {' · még '}{minutesLeft} perc
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Next meeting when free */}
+      {occupied === false && status?.nextMeetingStart && (
+        <p className="text-sm text-gray-500">
+          Köv.:{' '}
+          {new Date(status.nextMeetingStart).toLocaleTimeString('hu-HU', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
+      )}
+    </div>
+  );
+};
 
 export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) => {
   const [showOtherRooms, setShowOtherRooms] = useState(false);
@@ -120,7 +197,7 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
         onToast={showToast}
       />
 
-      {/* Booking modal */}
+      {/* Booking modal — instant booking from StatusCard */}
       <BookingModal
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
@@ -128,7 +205,7 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
         onToast={showToast}
       />
 
-      {/* Modal: Other rooms */}
+      {/* Modal: other rooms with live status */}
       {showOtherRooms && (
         <div
           className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-100 p-16 flex flex-col"
@@ -146,23 +223,15 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
             </div>
             <div className="grid grid-cols-2 gap-6">
               {otherRooms.map(name => (
-                <div
+                <OtherRoomCard
                   key={name}
+                  name={name}
+                  homeRoom={homeRoom}
                   onClick={() => {
                     setShowOtherRooms(false);
                     window.location.search = `?room=${encodeURIComponent(name)}`;
                   }}
-                  className={`p-8 border rounded-4xl flex justify-between items-center transition-all cursor-pointer group ${
-                    name === homeRoom
-                      ? 'bg-blue-900/20 border-blue-500'
-                      : 'bg-gray-800/40 border-gray-700 hover:border-gray-500'
-                  }`}
-                >
-                  <p className="text-3xl font-black text-white group-hover:text-blue-400">{name}</p>
-                  <div className="px-6 py-3 bg-gray-700 text-white font-black rounded-xl text-xs uppercase">
-                    Megtekintés
-                  </div>
-                </div>
+                />
               ))}
             </div>
           </div>

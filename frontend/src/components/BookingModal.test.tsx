@@ -49,7 +49,7 @@ describe('BookingModal', () => {
   });
 
   it('calls onBook with selected duration and organizer', async () => {
-    const onBook = vi.fn().mockResolvedValue(true);
+    const onBook = vi.fn().mockResolvedValue(null);
     const onToast = vi.fn();
     render(<BookingModal isOpen onClose={noop} onBook={onBook} onToast={onToast} />);
 
