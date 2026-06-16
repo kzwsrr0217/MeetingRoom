@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { RoomStatus } from '../hooks/useRoomStatus';
-import { ROOMS } from '../config';
+import { useRoomNames } from '../hooks/useRooms';
 import { Header } from './Header';
 import { StatusCard } from './StatusCard';
 import { MeetingDetails } from './MeetingDetails';
@@ -20,7 +20,8 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const otherRooms = ROOMS.filter(name => name !== roomName);
+  const allRooms = useRoomNames();
+  const otherRooms = allRooms.filter(name => name !== roomName);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type });

@@ -9,7 +9,7 @@ interface ActiveBooking {
 }
 
 @Injectable()
-export class MockCalendarService implements CalendarService {
+export class MockCalendarService extends CalendarService {
   // In-memory store: bookings made via the kiosk persist until they expire
   private readonly activeBookings = new Map<string, ActiveBooking>();
 

@@ -38,5 +38,6 @@ useFactory: (configService: ConfigService) => {
       inject: [ConfigService], 
     },
   ],
+  exports: [CalendarService],
 })
 export class CalendarModule {}

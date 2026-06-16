@@ -1,6 +1,9 @@
-import { ROOMS, STORAGE_KEY_HOME_ROOM } from '../config';
+import { STORAGE_KEY_HOME_ROOM } from '../config';
+import { useRoomNames } from '../hooks/useRooms';
 
 export const SetupScreen = () => {
+  const rooms = useRoomNames();
+
   const handleSelect = (room: string) => {
     localStorage.setItem(STORAGE_KEY_HOME_ROOM, room);
     window.location.href = '/';
@@ -18,7 +21,7 @@ export const SetupScreen = () => {
         Válassza ki a kioszk fizikai helyszínét. Ez lesz az alapértelmezett nézet.
       </p>
       <div className="grid grid-cols-2 gap-5 max-w-2xl w-full">
-        {ROOMS.map(room => (
+        {rooms.map(room => (
           <button
             key={room}
             onClick={() => handleSelect(room)}

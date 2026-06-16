@@ -4,21 +4,27 @@ import { CalendarService } from './calendar.service';
 import { RoomStatus } from './domain/room-status.model';
 
 @Injectable()
-export class GraphCalendarService implements CalendarService {
+export class GraphCalendarService extends CalendarService {
   private graphClient: Client;
+  private currentToken: string;
 
   constructor() {
-    // POC: Replace with a fresh 1-hour token from https://developer.microsoft.com/en-us/graph/graph-explorer
-    // Sign in → click your avatar → "Access token" → copy here → restart backend
-    // See docs/ADMIN_GUIDE.md for full instructions.
-    const TEMP_TOKEN = process.env.GRAPH_TEMP_TOKEN ?? '';
+    super();
+    this.currentToken = process.env.GRAPH_TEMP_TOKEN ?? '';
+    this.initClient();
+  }
 
-
+  private initClient() {
     this.graphClient = Client.init({
-      authProvider: (done) => {
-        done(null, TEMP_TOKEN);
-      },
+      authProvider: (done) => done(null, this.currentToken),
     });
+  }
+
+  // Called by AppConfigController when admin pastes a new token
+  override updateToken(token: string): void {
+    this.currentToken = token;
+    this.initClient();
+    console.log('[GraphCalendarService] Token updated via admin UI');
   }
 
 async getRoomStatus(roomId: string): Promise<any> {
