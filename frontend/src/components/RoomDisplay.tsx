@@ -39,7 +39,7 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-900 antialiased relative overflow-hidden cursor-none select-none">
+    <div className="h-screen w-screen flex flex-col bg-gray-900 antialiased relative overflow-hidden select-none">
 
       {/* Toast */}
       {toast && (
