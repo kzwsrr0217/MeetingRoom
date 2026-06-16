@@ -62,6 +62,40 @@ describe('API routes (e2e)', () => {
       });
   });
 
+  it('POST /api/calendar/room/:roomId/book stores title and reflects it in status', async () => {
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/book')
+      .send({ durationMinutes: 30, organizer: 'Kovács Péter', title: 'Design review' })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/api/calendar/room/MMH%20Tihany/status')
+      .expect(200);
+
+    expect(res.body.isOccupied).toBe(true);
+    expect(res.body.currentMeetingTitle).toBe('Design review');
+    expect(res.body.currentMeetingOrganizer).toBe('Kovács Péter');
+  });
+
+  it('POST /api/calendar/room/:roomId/book with future startTime creates advance booking', async () => {
+    const startTime = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Bakony/book')
+      .send({ durationMinutes: 30, organizer: 'Nagy Anna', title: 'Sprint planning', startTime })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/api/calendar/room/MMH%20Bakony/status')
+      .expect(200);
+
+    // Room should be free now but have the future booking in schedule
+    expect(res.body.isOccupied).toBe(false);
+    const futureBooking = res.body.schedule.find((e: { title: string }) => e.title === 'Sprint planning');
+    expect(futureBooking).toBeDefined();
+    expect(futureBooking.organizer).toBe('Nagy Anna');
+  });
+
   it('POST /api/calendar/room/:roomId/book returns 400 when durationMinutes missing', () => {
     return request(app.getHttpServer())
       .post('/api/calendar/room/MMH%20S%C3%A9d/book')

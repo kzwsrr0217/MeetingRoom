@@ -53,28 +53,29 @@ export class MockCalendarService extends CalendarService {
     const now = new Date();
     const currentHour = now.getHours();
 
-    // Active kiosk booking takes priority over the time-based simulation
+    // Clean expired booking
     const booking = this.activeBookings.get(roomId);
-    if (booking) {
-      if (booking.end > now) {
-        const simulated = this.getSimulatedSchedule(roomId);
-        // Merge active booking with simulated schedule (deduplicate by start time)
-        const merged = [
-          { start: booking.start.toISOString(), end: booking.end.toISOString(), title: booking.title, organizer: booking.organizer },
-          ...simulated.filter(e => e.start !== booking.start.toISOString()),
-        ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    if (booking && booking.end <= now) this.activeBookings.delete(roomId);
 
-        return {
-          roomId,
-          isOccupied: true,
-          currentMeetingTitle: booking.title,
-          currentMeetingOrganizer: booking.organizer,
-          currentMeetingEnd: booking.end.toISOString(),
-          nextMeetingStart: null,
-          schedule: merged,
-        };
-      }
-      this.activeBookings.delete(roomId);
+    const pending = this.activeBookings.get(roomId) ?? null;
+    const isCurrent = pending !== null && pending.start <= now;
+
+    if (isCurrent) {
+      const simulated = this.getSimulatedSchedule(roomId);
+      const merged = [
+        { start: pending.start.toISOString(), end: pending.end.toISOString(), title: pending.title, organizer: pending.organizer },
+        ...simulated.filter(e => e.start !== pending.start.toISOString()),
+      ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      return {
+        roomId,
+        isOccupied: true,
+        currentMeetingTitle: pending.title,
+        currentMeetingOrganizer: pending.organizer,
+        currentMeetingEnd: pending.end.toISOString(),
+        nextMeetingStart: null,
+        schedule: merged,
+      };
     }
 
     // Time-based simulation (room-specific)
@@ -99,14 +100,23 @@ export class MockCalendarService extends CalendarService {
     const hourEnd = new Date(now);
     hourEnd.setHours(currentHour + 1, 0, 0, 0);
 
+    // Include a future booking in the schedule so the timeline shows it
+    const simulated = this.getSimulatedSchedule(roomId);
+    const schedule = pending
+      ? [
+          ...simulated.filter(e => e.start !== pending.start.toISOString()),
+          { start: pending.start.toISOString(), end: pending.end.toISOString(), title: pending.title, organizer: pending.organizer },
+        ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      : simulated;
+
     return {
       roomId,
       isOccupied,
       currentMeetingTitle: isOccupied ? title : null,
       currentMeetingOrganizer: isOccupied ? organizer : null,
       currentMeetingEnd: isOccupied ? hourEnd.toISOString() : null,
-      nextMeetingStart: isOccupied ? null : hourEnd.toISOString(),
-      schedule: this.getSimulatedSchedule(roomId),
+      nextMeetingStart: isOccupied ? null : (pending ? pending.start.toISOString() : hourEnd.toISOString()),
+      schedule,
     };
   }
 

@@ -231,6 +231,7 @@ MeetingRoom/
 │       │   ├── useRoomStatus.ts        # API polling, bookRoom returns string|null
 │       │   ├── usePresetNames.ts       # Fetches preset names, caches to localStorage
 │       │   ├── useCurrentTime.ts       # Live clock (re-renders every second)
+│       │   ├── useIdleTimer.ts         # Fires isIdle after configurable inactivity timeout
 │       │   └── useWakeLock.ts          # Screen Wake Lock API
 │       └── components/
 │           ├── RoomDisplay.tsx         # Main kiosk layout + UpcomingStrip + OtherRoomCard
@@ -422,7 +423,7 @@ cd backend
 npx jest --config ./test/jest-e2e.json --forceExit
 ```
 
-**20 tests** against a real in-process NestJS app in mock mode. Covers health, room CRUD, config endpoints, and booking.
+**22 tests** against a real in-process NestJS app in mock mode. Covers health, room CRUD, config endpoints, booking with title, and future advance booking.
 
 ### Frontend component tests (Vitest)
 
@@ -442,7 +443,7 @@ Runs all `*.test.ts(x)` files. Currently **30 tests** across 3 files:
 cd backend && npm test && npx jest --config ./test/jest-e2e.json --forceExit; cd ../frontend && npm test -- --run
 ```
 
-Total: **121 tests** (71 unit + 20 e2e + 30 frontend).
+Total: **123 tests** (71 unit + 22 e2e + 30 frontend).
 
 ---
 
