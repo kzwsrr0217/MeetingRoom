@@ -35,6 +35,8 @@ The status updates automatically every 10 seconds. A small green dot labelled **
 4. Tap **"Megerősítés"** (Confirm)
 5. A confirmation message appears and the room status updates
 
+> In live mode the booking is written directly to the meeting room's Outlook calendar and will appear in everyone's calendar view. In demo (mock) mode it is simulated locally and resets when the server restarts.
+
 ### Booking in Advance (timeline booking)
 
 1. Look at the **timeline** at the bottom — it shows today's schedule as blocks

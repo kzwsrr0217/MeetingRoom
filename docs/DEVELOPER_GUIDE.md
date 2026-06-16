@@ -8,7 +8,7 @@ MeetingRoom is a tablet/kiosk application that displays real-time meeting room a
 - **Frontend** — React 19 + Vite + Tailwind CSS 4, port 5173
 - **Calendar source** — Microsoft Graph API (or mock data for development)
 
-The application is stateless: no database. All meeting data comes from Outlook via the Graph API.
+Room configuration persists in `backend/data/rooms.json`. Meeting data comes from Outlook via the Graph API (or mock simulation).
 
 ---
 
@@ -73,17 +73,23 @@ After changing `.env`:
 docker compose restart backend
 ```
 
+### Rooms — Admin UI or `backend/data/rooms.json`
+
+Rooms are managed at runtime via the admin dashboard (`/admin`) — no code changes required. The backend persists the room list to `backend/data/rooms.json` on disk.
+
+Alternatively, edit `rooms.json` directly and restart the backend. The file is git-ignored; `backend/data/.gitkeep` just ensures the `data/` directory is tracked.
+
 ### Frontend — `frontend/src/config.ts`
 
-All rooms, preset organiser names, localStorage keys, and the API base URL are defined here:
+Contains the static room fallback (shown before the API responds), default preset organiser names, localStorage keys, and the API base URL.
 
 ```typescript
-export const ROOMS = ['MMH Séd', 'MMH Balaton', 'MMH Mars', ...];
-export const DEFAULT_PRESET_ORGANIZERS = ['Kovács Péter', 'Nagy Anna', ...];
-export const API_BASE = 'http://localhost:3000/api';
+export const ROOMS = ['MMH Séd', 'MMH Balaton', ...]; // static fallback only
+export const DEFAULT_PRESET_ORGANIZERS = ['Kovács Péter', ...]; // default if backend empty
+export const API_BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api`;
 ```
 
-To add/remove rooms: edit `ROOMS` in `config.ts`. The change propagates to the kiosk, admin dashboard, and setup screen automatically.
+The live room list comes from `GET /api/rooms` — `ROOMS` in `config.ts` is only the initial fallback before the API responds.
 
 ---
 
@@ -95,7 +101,7 @@ To add/remove rooms: edit `ROOMS` in `config.ts`. The change propagates to the k
 | `http://localhost:5173/?room=MMH%20Balaton` | Kiosk view forced to a specific room |
 | `http://localhost:5173/admin` | Admin dashboard (desktop-optimised) |
 
-**First-run flow:** On first visit, `localStorage` has no home room set — the app renders the **SetupScreen** (full-screen room picker). After selecting a room, it is saved to `localStorage` under the key `meetingroom_home` and the kiosk loads.
+**First-run flow:** On first visit, `localStorage` has no home room set — the app renders the **SetupScreen** (full-screen room picker populated from the API). After selecting a room, it is saved to `localStorage` under the key `meetingroom_home` and the kiosk loads.
 
 **Reset a tablet:** Hold the clock on the kiosk for 3 seconds. The home room is cleared from `localStorage` and the SetupScreen appears again.
 
@@ -116,6 +122,8 @@ Mock behavior per room:
 | Séd | Occupied during even hours |
 | Others | Always free |
 
+Bookings made on the kiosk flip the mock room to occupied until the booking expires (in-memory only, resets on backend restart).
+
 ### Live Mode (Microsoft Graph)
 
 Requires a valid access token. See [Updating the Graph API Token](#updating-the-graph-api-token) below.
@@ -124,14 +132,18 @@ Requires a valid access token. See [Updating the Graph API Token](#updating-the-
 
 ## Updating the Graph API Token
 
-The backend reads the token from the `GRAPH_TEMP_TOKEN` environment variable. Do not put the token in source code.
+**Easiest way — admin UI (no restart required):**
 
-**Steps to refresh:**
+1. Go to http://localhost:5173/admin
+2. Paste a fresh token in the **Microsoft Graph Token** section
+3. Click **Token alkalmazása** — the backend updates immediately, no restart needed
+
+**Manual fallback — edit `.env`:**
 
 1. Go to [Microsoft Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer)
 2. Sign in with the Outlook account that owns the meeting room calendars
 3. Click your avatar → **Access token** → copy the token
-4. Open `backend/.env` and paste the token:
+4. Open `backend/.env` and paste:
    ```env
    GRAPH_TEMP_TOKEN=eyJ0eXAiOiJKV1Qi...
    USE_MOCK_DATA=false
@@ -150,28 +162,45 @@ The backend reads the token from the `GRAPH_TEMP_TOKEN` environment variable. Do
 ```
 MeetingRoom/
 ├── backend/
+│   ├── data/
+│   │   ├── .gitkeep                        # Ensures data/ is tracked
+│   │   ├── rooms.json                      # Runtime room list (git-ignored)
+│   │   └── config.json                     # Shared preset names (git-ignored)
 │   └── src/
 │       ├── main.ts                         # Entry point, CORS, port
 │       ├── app.module.ts                   # Root module, loads .env
-│       └── calendar/
-│           ├── calendar.module.ts          # Selects Mock vs. Graph service
-│           ├── calendar.controller.ts      # HTTP routes (/api/*)
-│           ├── calendar.service.ts         # Abstract base class
-│           ├── mock-calendar.service.ts    # Simulated data
-│           ├── mock-calendar.service.spec.ts   # Unit tests
-│           ├── calendar.controller.spec.ts     # Controller unit tests
-│           ├── graph-calendar.service.ts   # Real Microsoft Graph calls
-│           └── domain/
-│               └── room-status.model.ts    # RoomStatus data model
+│       ├── calendar/
+│       │   ├── calendar.module.ts          # Selects Mock vs. Graph service
+│       │   ├── calendar.controller.ts      # /api/calendar/* routes
+│       │   ├── calendar.service.ts         # Abstract base (updateToken no-op)
+│       │   ├── mock-calendar.service.ts    # In-memory simulation
+│       │   ├── mock-calendar.service.spec.ts
+│       │   ├── calendar.controller.spec.ts
+│       │   ├── graph-calendar.service.ts   # Real Microsoft Graph calls
+│       │   └── domain/
+│       │       └── room-status.model.ts    # RoomStatus interface
+│       ├── rooms/
+│       │   ├── room.model.ts               # Room interface
+│       │   ├── rooms.service.ts            # CRUD + rooms.json persistence
+│       │   ├── rooms.controller.ts         # /api/rooms/* routes
+│       │   ├── rooms.module.ts
+│       │   ├── rooms.service.spec.ts
+│       │   └── rooms.controller.spec.ts
+│       └── app-config/
+│           ├── app-config.controller.ts    # /api/config/* (token + preset names)
+│           ├── app-config.module.ts
+│           └── app-config.controller.spec.ts
 │   └── test/
 │       └── app.e2e-spec.ts                 # E2E integration tests
 ├── frontend/
 │   └── src/
 │       ├── main.tsx                        # React entry, strict mode
 │       ├── test-setup.ts                   # Vitest + jest-dom setup
-│       ├── config.ts                       # Rooms, names, API URL, storage keys
+│       ├── config.ts                       # Static fallback, API URL, storage keys
 │       ├── App.tsx                         # Routing: /admin | SetupScreen | KioskApp
 │       ├── hooks/
+│       │   ├── useRooms.ts                 # API fetch with static fallback
+│       │   ├── useRooms.test.ts
 │       │   ├── useRoomStatus.ts            # API polling, booking logic
 │       │   ├── useCurrentTime.ts           # Live clock
 │       │   └── useWakeLock.ts              # Screen Wake Lock API
@@ -184,8 +213,8 @@ MeetingRoom/
 │           ├── BookingModal.tsx            # Duration + name picker modal
 │           ├── SetupScreen.tsx             # First-run room picker
 │           ├── AdminView.tsx               # Admin dashboard (/admin)
-│           ├── SetupScreen.test.tsx        # Component tests
-│           └── BookingModal.test.tsx       # Component tests
+│           ├── SetupScreen.test.tsx
+│           └── BookingModal.test.tsx
 ├── docker-compose.yml
 ├── .gitignore
 └── docs/
@@ -203,14 +232,87 @@ Returns backend status and current mode.
 
 **Response:**
 ```json
-{
-  "status": "ok",
-  "mode": "mock",
-  "timestamp": "2026-06-15T19:15:13.465Z"
-}
+{ "status": "ok", "mode": "mock", "timestamp": "2026-06-16T04:51:40.000Z" }
 ```
 
 `mode` is either `"mock"` or `"graph"`.
+
+---
+
+### GET `/rooms`
+
+Returns all configured rooms sorted by display order.
+
+**Response:**
+```json
+[
+  { "id": "mmh-sed", "name": "MMH Séd", "calendarEmail": "", "order": 0 },
+  { "id": "mmh-balaton", "name": "MMH Balaton", "calendarEmail": "", "order": 1 }
+]
+```
+
+### POST `/rooms`
+
+Creates a new room.
+
+**Body:** `{ "name": "MMH Jupiter", "calendarEmail": "jupiter@company.hu" }` (`calendarEmail` optional)
+
+**Response:** The created `Room` object (HTTP 201).
+
+### PATCH `/rooms/:id`
+
+Updates a room's name, email, or order. All fields optional.
+
+**Body:** `{ "name": "New Name", "calendarEmail": "new@company.hu", "order": 2 }`
+
+**Response:** The updated `Room` object.
+
+### DELETE `/rooms/:id`
+
+Removes a room. Remaining rooms are re-numbered to keep order contiguous.
+
+**Response:** `{ "success": true }`
+
+### POST `/rooms/reset`
+
+Restores the 6 default rooms (MMH Séd, Balaton, Mars, Tihany, Bakony, Kis Balaton).
+
+**Response:** Array of default rooms.
+
+---
+
+### GET `/config/graph-token/status`
+
+Returns the current token status.
+
+**Response:**
+```json
+{ "hasToken": true, "expiresAt": "2026-06-16T05:51:00.000Z" }
+```
+
+### PUT `/config/graph-token`
+
+Hot-swaps the Graph token at runtime (no backend restart required). Also updates `backend/.env`.
+
+**Body:** `{ "token": "eyJ0eXAi..." }`
+
+**Response:** `{ "success": true, "expiresAt": "..." }`
+
+---
+
+### GET `/config/preset-names`
+
+Returns the shared preset organiser names.
+
+**Response:** `["Kovács Péter", "Nagy Anna", ...]`
+
+### PUT `/config/preset-names`
+
+Saves the preset names (shared across all kiosks).
+
+**Body:** `{ "names": ["Alice", "Bob"] }`
+
+**Response:** The saved `string[]`.
 
 ---
 
@@ -227,22 +329,11 @@ Returns the current status of a room.
   "isOccupied": true,
   "currentMeetingTitle": "Heti review",
   "currentMeetingOrganizer": "Nagy Anna",
-  "currentMeetingEnd": "2026-06-15T10:00:00.000Z",
+  "currentMeetingEnd": "2026-06-16T10:00:00.000Z",
   "nextMeetingStart": null,
-  "schedule": [
-    {
-      "start": "2026-06-15T08:00:00.000Z",
-      "end": "2026-06-15T10:00:00.000Z",
-      "title": "Heti review",
-      "organizer": "Nagy Anna"
-    }
-  ]
+  "schedule": [...]
 }
 ```
-
-When free: `currentMeetingTitle`, `currentMeetingOrganizer`, `currentMeetingEnd` are `null`; `nextMeetingStart` is set or `null` if no more meetings today.
-
----
 
 ### POST `/calendar/room/:roomId/book`
 
@@ -250,26 +341,18 @@ Creates a new booking.
 
 **Body:**
 ```json
-{
-  "durationMinutes": 30,
-  "organizer": "Kovács Péter",
-  "startTime": "2026-06-15T10:00:00.000Z"
-}
+{ "durationMinutes": 30, "organizer": "Kovács Péter", "startTime": "2026-06-16T10:00:00.000Z" }
 ```
 
-`startTime` is optional — omit for an immediate booking.
+`startTime` optional — omit for immediate booking.
 
-**Response:** `true` on success (HTTP 201).
-
-**Error:** HTTP 400 if `durationMinutes` is missing.
-
----
+**Response:** `true` (HTTP 201). **Error:** HTTP 400 if `durationMinutes` missing.
 
 ### POST `/calendar/room/:roomId/checkin`
 
-Confirms attendee check-in (PoC stub — logs only).
+Confirms check-in (POC stub).
 
-**Response:** `{ "success": true }` (HTTP 201)
+**Response:** `{ "success": true }`
 
 ---
 
@@ -282,7 +365,12 @@ cd backend
 npm test
 ```
 
-Runs `*.spec.ts` files: `mock-calendar.service.spec.ts` + `calendar.controller.spec.ts`.
+Runs all `*.spec.ts` files. Currently **70 tests** across 5 suites:
+- `mock-calendar.service.spec.ts` — 15 tests
+- `calendar.controller.spec.ts` — 9 tests
+- `rooms.service.spec.ts` — 15 tests
+- `rooms.controller.spec.ts` — 13 tests
+- `app-config.controller.spec.ts` — 18 tests
 
 ### Backend e2e tests
 
@@ -291,7 +379,7 @@ cd backend
 npx jest --config ./test/jest-e2e.json --forceExit
 ```
 
-Tests all API routes against a real in-process NestJS app in mock mode.
+5 tests against a real in-process NestJS app in mock mode.
 
 ### Frontend component tests (Vitest)
 
@@ -300,13 +388,18 @@ cd frontend
 npm test
 ```
 
-Runs `*.test.tsx` files: `SetupScreen.test.tsx` + `BookingModal.test.tsx`.
+Runs all `*.test.ts(x)` files. Currently **24 tests** across 3 files:
+- `SetupScreen.test.tsx` — 4 tests
+- `BookingModal.test.tsx` — 10 tests
+- `hooks/useRooms.test.ts` — 10 tests
 
 ### Run all tests
 
 ```bash
-cd backend && npm test --forceExit; cd ../frontend && npm test
+cd backend && npm test && npx jest --config ./test/jest-e2e.json --forceExit; cd ../frontend && npm test -- --run
 ```
+
+Total: **99 tests** (70 unit + 5 e2e + 24 frontend).
 
 ---
 
@@ -332,8 +425,9 @@ npm run dev
 |---------|-------|-----|
 | Frontend still shows old code after editing | Vite HMR doesn't fire in Docker on Windows | `docker restart meetingroom_frontend` |
 | "Kapcsolódási hiba" error screen | Backend not running or port conflict | `docker compose logs backend` |
-| Graph API calls fail after ~1 hour | Token expired | Update `GRAPH_TEMP_TOKEN` in `backend/.env` and restart backend |
+| Graph API calls fail after ~1 hour | Token expired | Paste fresh token via `/admin` → Graph Token section |
 | Room always free despite meetings | Graph token user has no calendar events | Use mock mode or use the calendar owner's token |
 | `npm install` fails in container | Network issue | `docker compose down && docker compose up` |
 | Port 3000 or 5173 already in use | Another service running | `docker ps` to find and stop conflicting containers |
 | Setup screen appears every time | `localStorage` not persisting | Check browser privacy mode (incognito clears storage on close) |
+| Rooms reset to defaults after restart | `data/rooms.json` not persisted | Ensure the Docker volume or bind-mount is configured |
