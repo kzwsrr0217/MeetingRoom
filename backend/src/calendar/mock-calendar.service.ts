@@ -3,6 +3,7 @@ import { CalendarService } from './calendar.service';
 import { RoomStatus } from './domain/room-status.model';
 
 interface ActiveBooking {
+  start: Date;
   end: Date;
   title: string;
   organizer: string;
@@ -28,7 +29,12 @@ export class MockCalendarService extends CalendarService {
           currentMeetingOrganizer: booking.organizer,
           currentMeetingEnd: booking.end.toISOString(),
           nextMeetingStart: null,
-          schedule: [],
+          schedule: [{
+            start: booking.start.toISOString(),
+            end: booking.end.toISOString(),
+            title: booking.title,
+            organizer: booking.organizer,
+          }],
         };
       }
       this.activeBookings.delete(roomId);
@@ -72,6 +78,7 @@ export class MockCalendarService extends CalendarService {
     const end = new Date(start.getTime() + durationMinutes * 60000);
 
     this.activeBookings.set(roomId, {
+      start,
       end,
       title: `Gyors foglalás (${durationMinutes} perc)`,
       organizer,

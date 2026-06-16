@@ -70,7 +70,7 @@ describe('MockCalendarService', () => {
       expect(status.nextMeetingStart).toBeNull();
     });
 
-    it('returns schedule as empty array', async () => {
+    it('returns schedule as empty array for time-based simulation', async () => {
       const status = await service.getRoomStatus('MMH Balaton');
       expect(status.schedule).toEqual([]);
     });
@@ -117,6 +117,18 @@ describe('MockCalendarService', () => {
     it('accepts optional startTime for future booking', async () => {
       const result = await service.bookRoom('MMH Bakony', 60, 'Nagy Anna', '2026-01-01T14:00:00.000Z');
       expect(result).toBe(true);
+    });
+
+    it('active booking appears in schedule so the timeline can render it', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 60, 'Kovács Péter');
+      const status = await service.getRoomStatus('MMH Tihany');
+      expect(status.schedule).toHaveLength(1);
+      expect(status.schedule[0].title).toBe('Gyors foglalás (60 perc)');
+      expect(status.schedule[0].organizer).toBe('Kovács Péter');
+      expect(status.schedule[0].start).toBe(new Date('2026-01-01T11:00:00').toISOString());
+      expect(status.schedule[0].end).toBe(new Date('2026-01-01T12:00:00').toISOString());
+      jest.useRealTimers();
     });
 
     it('each service instance has isolated booking state', async () => {
