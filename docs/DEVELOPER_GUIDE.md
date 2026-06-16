@@ -44,10 +44,33 @@ docker compose down
 **Rebuild after package.json changes:**
 ```bash
 docker compose down
-docker compose up --build
+docker compose up
 ```
 
 > **Windows HMR note:** Vite's hot module replacement does not always fire on file changes when running inside Docker Desktop on Windows (inotify limitation). After editing frontend files, run `docker restart meetingroom_frontend` to pick up changes.
+
+---
+
+## GitHub Codespaces (Demo / Sharing with Colleagues)
+
+Codespaces runs the full dev environment in the cloud — no local install needed.
+
+1. Go to the GitHub repo → green **Code** button → **Codespaces** → **Create codespace on master**
+2. Wait ~2 minutes for the container to build and `npm install` to complete
+3. Open two terminals inside the Codespace:
+   - Terminal 1: `cd backend && npm run start:dev`
+   - Terminal 2: `cd frontend && npm run dev`
+4. Codespaces auto-forwards port 5173 and opens a preview
+
+**To share with colleagues:**
+- In VS Code's **Ports** panel, right-click port **5173** → **Port Visibility** → **Public**
+- Share that URL — colleagues open it in a browser with no login required
+
+**GRAPH_TEMP_TOKEN in Codespaces:**
+- Option A (quick): create `backend/.env` in the terminal with your token after the Codespace starts
+- Option B (persistent): add `GRAPH_TEMP_TOKEN` as a [Codespaces Secret](https://github.com/settings/codespaces) in your GitHub account settings — it will be injected as an environment variable automatically on every Codespace
+
+The Vite dev server proxies `/api` requests to `localhost:3000`, so only port 5173 needs to be shared publicly.
 
 ---
 
@@ -81,7 +104,11 @@ Contains the static room fallback (shown before the API responds), default prese
 ```typescript
 export const ROOMS = ['MMH Séd', 'MMH Balaton', ...]; // static fallback only
 export const DEFAULT_PRESET_ORGANIZERS = ['Kovács Péter', ...]; // default if backend empty
-export const API_BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api`;
+// Uses relative /api in dev/Codespaces (Vite proxies to localhost:3000).
+// Set VITE_API_URL for production builds pointing to a remote backend.
+export const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
 ```
 
 The live room list comes from `GET /api/rooms` — `ROOMS` in `config.ts` is only the initial fallback before the API responds.
@@ -156,18 +183,21 @@ Requires a valid access token. See [Updating the Graph API Token](#updating-the-
 
 ```
 MeetingRoom/
+├── .devcontainer/
+│   └── devcontainer.json               # GitHub Codespaces configuration
 ├── backend/
+│   ├── Dockerfile                      # Production multi-stage build
 │   ├── data/
-│   │   ├── .gitkeep                        # Ensures data/ is tracked by git
-│   │   ├── rooms.json                      # Runtime room list (git-ignored)
-│   │   └── config.json                     # Shared preset names (git-ignored)
+│   │   ├── .gitkeep                    # Ensures data/ is tracked by git
+│   │   ├── rooms.json                  # Runtime room list (git-ignored)
+│   │   └── config.json                 # Shared preset names (git-ignored)
 │   └── src/
-│       ├── main.ts                         # Entry point, CORS, port
-│       ├── app.module.ts                   # Root module, loads .env
+│       ├── main.ts                     # Entry point, CORS, port
+│       ├── app.module.ts               # Root module, loads .env
 │       ├── calendar/
-│       │   ├── calendar.module.ts          # Selects Mock vs. Graph service at startup
-│       │   ├── calendar.controller.ts      # /api/calendar/* routes
-│       │   ├── calendar.service.ts         # Abstract base (updateToken no-op)
+│       │   ├── calendar.module.ts      # Selects Mock vs. Graph service at startup
+│       │   ├── calendar.controller.ts  # /api/calendar/* routes
+│       │   ├── calendar.service.ts     # Abstract base (updateToken no-op)
 │       │   ├── mock-calendar.service.ts    # In-memory simulation + daily schedule
 │       │   ├── mock-calendar.service.spec.ts
 │       │   ├── calendar.controller.spec.ts
@@ -186,29 +216,31 @@ MeetingRoom/
 │           ├── app-config.module.ts
 │           └── app-config.controller.spec.ts
 │   └── test/
-│       └── app.e2e-spec.ts                 # E2E integration tests (20 tests)
+│       └── app.e2e-spec.ts             # E2E integration tests (20 tests)
 ├── frontend/
+│   ├── Dockerfile                      # Production multi-stage build (Vite + nginx)
+│   ├── nginx.conf                      # nginx template — proxies /api to backend
 │   └── src/
-│       ├── main.tsx                        # React entry, strict mode
-│       ├── test-setup.ts                   # Vitest + jest-dom setup
-│       ├── config.ts                       # Static fallback, API URL, storage keys
-│       ├── App.tsx                         # Routing: /admin | SetupScreen | KioskApp
+│       ├── main.tsx                    # React entry, strict mode
+│       ├── test-setup.ts               # Vitest + jest-dom setup
+│       ├── config.ts                   # Static fallback, API URL, storage keys
+│       ├── App.tsx                     # Routing: /admin | SetupScreen | KioskApp
 │       ├── hooks/
-│       │   ├── useRooms.ts                 # API fetch with static fallback, polls every 5 min
+│       │   ├── useRooms.ts             # API fetch with static fallback, polls every 5 min
 │       │   ├── useRooms.test.ts
-│       │   ├── useRoomStatus.ts            # API polling, bookRoom returns string|null
-│       │   ├── usePresetNames.ts           # Fetches preset names, caches to localStorage
-│       │   ├── useCurrentTime.ts           # Live clock (re-renders every second)
-│       │   └── useWakeLock.ts              # Screen Wake Lock API
+│       │   ├── useRoomStatus.ts        # API polling, bookRoom returns string|null
+│       │   ├── usePresetNames.ts       # Fetches preset names, caches to localStorage
+│       │   ├── useCurrentTime.ts       # Live clock (re-renders every second)
+│       │   └── useWakeLock.ts          # Screen Wake Lock API
 │       └── components/
-│           ├── RoomDisplay.tsx             # Main kiosk layout + UpcomingStrip + OtherRoomCard
-│           ├── Header.tsx                  # Clock + long-press reset
-│           ├── StatusCard.tsx              # Free / Occupied + booking button
-│           ├── MeetingDetails.tsx          # Current meeting info + countdown
-│           ├── Timeline.tsx                # Day schedule bar + advance booking slots
-│           ├── BookingModal.tsx            # Title + duration + name picker modal
-│           ├── SetupScreen.tsx             # First-run room picker
-│           ├── AdminView.tsx               # Admin dashboard (/admin)
+│           ├── RoomDisplay.tsx         # Main kiosk layout + UpcomingStrip + OtherRoomCard
+│           ├── Header.tsx              # Clock + long-press reset
+│           ├── StatusCard.tsx          # Free / Occupied + booking button
+│           ├── MeetingDetails.tsx      # Current meeting info + countdown
+│           ├── Timeline.tsx            # Day schedule bar + advance booking slots
+│           ├── BookingModal.tsx        # Title + duration + name picker modal
+│           ├── SetupScreen.tsx         # First-run room picker
+│           ├── AdminView.tsx           # Admin dashboard (/admin)
 │           ├── SetupScreen.test.tsx
 │           └── BookingModal.test.tsx
 ├── docker-compose.yml
@@ -428,6 +460,8 @@ npm install
 npm run dev
 ```
 
+The Vite dev server proxies `/api` requests to `http://localhost:3000` automatically — no environment variables needed.
+
 ---
 
 ## Common Issues
@@ -442,3 +476,4 @@ npm run dev
 | Port 3000 or 5173 already in use | Another service running | `docker ps` to find and stop conflicting containers |
 | Setup screen appears every time | `localStorage` not persisting | Check browser privacy mode (incognito clears storage on close) |
 | Rooms reset to defaults after restart | `data/rooms.json` not persisted | Ensure the Docker volume or bind-mount is configured |
+| Codespace preview shows connection error | Backend not started yet | Run `cd backend && npm run start:dev` in a terminal first |

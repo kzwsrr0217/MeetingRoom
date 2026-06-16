@@ -58,38 +58,35 @@ This requires knowing the email address of each room's Outlook resource mailbox 
 
 **Problem:** `docker-compose.yml` runs `npm run start:dev` (NestJS) and `npm run dev` (Vite). Dev servers are slower, expose source maps, and are not designed for multiple concurrent tablet clients.
 
-**Fix:** Create a `docker-compose.prod.yml` with proper multi-stage builds:
+**Status:** Production multi-stage `Dockerfile`s already exist at `backend/Dockerfile` and `frontend/Dockerfile` (Vite build + nginx).
 
-```dockerfile
-# backend/Dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+**Remaining fix:** Add a `docker-compose.prod.yml` that uses the Dockerfiles instead of the dev server images:
 
-FROM node:20-alpine
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-CMD ["node", "dist/main"]
+```yaml
+# docker-compose.prod.yml
+services:
+  backend:
+    build: ./backend
+    environment:
+      - USE_MOCK_DATA=false
+      - GRAPH_TEMP_TOKEN=${GRAPH_TEMP_TOKEN}
+    volumes:
+      - ./backend/data:/app/data
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 ```
 
-```dockerfile
-# frontend/Dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-```
+Run with: `docker compose -f docker-compose.prod.yml up --build`
 
 ---
 
