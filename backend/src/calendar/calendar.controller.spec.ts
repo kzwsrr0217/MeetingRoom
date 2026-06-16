@@ -79,7 +79,7 @@ describe('CalendarController', () => {
       });
       expect(result).toBe(true);
       expect(mockCalendarService.bookRoom).toHaveBeenCalledWith(
-        'MMH Séd', 30, 'Kovács Péter', undefined,
+        'MMH Séd', 30, 'Kovács Péter', undefined, undefined,
       );
     });
 
@@ -92,14 +92,14 @@ describe('CalendarController', () => {
     it('falls back to Névtelen foglaló when organizer is empty', async () => {
       await controller.bookRoom('MMH Séd', { durationMinutes: 30, organizer: '' });
       expect(mockCalendarService.bookRoom).toHaveBeenCalledWith(
-        'MMH Séd', 30, 'Névtelen foglaló', undefined,
+        'MMH Séd', 30, 'Névtelen foglaló', undefined, undefined,
       );
     });
 
-    it('passes startTime through to service', async () => {
+    it('passes title and startTime through to service', async () => {
       const startTime = '2026-01-01T14:00:00.000Z';
-      await controller.bookRoom('MMH Séd', { durationMinutes: 60, organizer: 'Test', startTime });
-      expect(mockCalendarService.bookRoom).toHaveBeenCalledWith('MMH Séd', 60, 'Test', startTime);
+      await controller.bookRoom('MMH Séd', { durationMinutes: 60, organizer: 'Test', title: 'Design review', startTime });
+      expect(mockCalendarService.bookRoom).toHaveBeenCalledWith('MMH Séd', 60, 'Test', 'Design review', startTime);
     });
   });
 

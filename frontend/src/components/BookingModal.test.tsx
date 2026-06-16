@@ -58,7 +58,7 @@ describe('BookingModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Megerősítés' }));
 
     await waitFor(() => {
-      expect(onBook).toHaveBeenCalledWith(60, DEFAULT_PRESET_ORGANIZERS[1]);
+      expect(onBook).toHaveBeenCalledWith(60, DEFAULT_PRESET_ORGANIZERS[1], '');
     });
   });
 

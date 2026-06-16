@@ -43,7 +43,7 @@ export class CalendarController {
   async bookRoom(
     @Param('roomId') roomId: string,
     // ÚJ: startTime hozzáadva a Body-hoz
-    @Body() bookingData: { durationMinutes: number; organizer: string; startTime?: string }
+    @Body() bookingData: { durationMinutes: number; organizer: string; title?: string; startTime?: string }
   ) {
     this.logger.log(`Beérkező adatok: ${JSON.stringify(bookingData)}`);
 
@@ -52,10 +52,11 @@ export class CalendarController {
     }
 
     return this.calendarService.bookRoom(
-      roomId, 
-      bookingData.durationMinutes, 
+      roomId,
+      bookingData.durationMinutes,
       bookingData.organizer || 'Névtelen foglaló',
-      bookingData.startTime // Átadjuk a Service-nek
+      bookingData.title,
+      bookingData.startTime,
     );
   }
 

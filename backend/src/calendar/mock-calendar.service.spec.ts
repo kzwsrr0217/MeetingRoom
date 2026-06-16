@@ -70,9 +70,11 @@ describe('MockCalendarService', () => {
       expect(status.nextMeetingStart).toBeNull();
     });
 
-    it('returns schedule as empty array for time-based simulation', async () => {
+    it('returns simulated schedule for time-based rooms', async () => {
       const status = await service.getRoomStatus('MMH Balaton');
-      expect(status.schedule).toEqual([]);
+      expect(status.schedule.length).toBeGreaterThan(0);
+      expect(status.schedule[0]).toHaveProperty('start');
+      expect(status.schedule[0]).toHaveProperty('title');
     });
   });
 

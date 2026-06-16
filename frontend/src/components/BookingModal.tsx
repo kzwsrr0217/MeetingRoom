@@ -4,7 +4,7 @@ import { usePresetNames } from '../hooks/usePresetNames';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onBook: (durationMinutes: number, organizer: string) => Promise<string | null>;
+  onBook: (durationMinutes: number, organizer: string, title: string) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
   startTime?: Date; // When set, shows "Előrefoglalás: HH:MM" and adjusts end-time toast
 }
@@ -15,6 +15,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
   const [selectedName, setSelectedName] = useState('');
   const [customName, setCustomName] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+  const [meetingTitle, setMeetingTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -27,7 +28,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
     setIsSubmitting(true);
     onToast('Foglalás rögzítése...', 'success');
 
-    const error = await onBook(duration, organizer);
+    const error = await onBook(duration, organizer, meetingTitle.trim());
     setIsSubmitting(false);
 
     if (error === null) {
@@ -38,6 +39,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
       setSelectedName('');
       setCustomName('');
       setShowCustom(false);
+      setMeetingTitle('');
       setDuration(30);
       onClose();
     } else {
@@ -60,15 +62,26 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
           {isFuture ? 'Előrefoglalás' : 'Terem foglalása'}
         </h2>
         {isFuture && (
-          <p className="text-green-400 text-lg font-bold mb-8">
+          <p className="text-green-400 text-lg font-bold mb-6">
             Kezdés: {startTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
-        {!isFuture && <div className="mb-10" />}
+        {!isFuture && <div className="mb-6" />}
+
+        {/* Meeting title */}
+        <p className="text-sm text-gray-500 uppercase tracking-widest mb-2">Megbeszélés neve (opcionális)</p>
+        <input
+          type="text"
+          value={meetingTitle}
+          onChange={e => setMeetingTitle(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleBook()}
+          placeholder="pl. Design review, Sprint planning..."
+          className="w-full bg-gray-800 text-white text-xl p-5 rounded-2xl border border-gray-700 focus:border-green-500 focus:outline-none mb-8"
+        />
 
         {/* Duration */}
         <p className="text-sm text-gray-500 uppercase tracking-widest mb-3">Időtartam</p>
-        <div className="flex gap-4 mb-10">
+        <div className="flex gap-4 mb-8">
           {[15, 30, 60].map(mins => (
             <button
               key={mins}

@@ -11,7 +11,7 @@ interface Props {
   status: RoomStatus;
   roomName: string;
   homeRoom: string;
-  onBookRoom: (durationMinutes: number, organizer: string, startTime?: Date) => Promise<string | null>;
+  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
 }
 
 // Live status card shown in the "other rooms" modal
@@ -169,7 +169,7 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
       </div>
 
       {/* Main layout */}
-      <div className={`grow flex justify-between p-12 pr-20 border-l-16 transition-colors duration-500 ${
+      <div className={`flex-1 flex justify-between p-12 pr-20 border-l-16 transition-colors duration-500 ${
         status.isOccupied ? 'border-red-600' : 'border-green-600'
       }`}>
         <div className="flex flex-col justify-start max-w-4xl z-10">

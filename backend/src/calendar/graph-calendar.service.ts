@@ -82,16 +82,15 @@ async getRoomStatus(roomId: string): Promise<any> {
     }
   }
 
-  // ÚJ: A startTime opcionális paraméter bekerült!
-  async bookRoom(roomId: string, durationMinutes: number, organizer: string, startTime?: string): Promise<boolean> {
+  async bookRoom(roomId: string, durationMinutes: number, organizer: string, title?: string, startTime?: string): Promise<boolean> {
     console.log(`\n🔄 [GRAPH API] Kérés indítása az Outlook felé...`);
-    
-    // Ha van startTime, azt használjuk, különben a mostani pillanatot
+
     const start = startTime ? new Date(startTime) : new Date();
     const end = new Date(start.getTime() + durationMinutes * 60000);
+    const subject = title?.trim() ? title.trim() : `Kioszk foglalás: ${organizer}`;
 
     const event = {
-      subject: `Kioszk foglalás: ${organizer}`,
+      subject,
       start: { dateTime: start.toISOString(), timeZone: 'UTC' },
       end: { dateTime: end.toISOString(), timeZone: 'UTC' },
     };

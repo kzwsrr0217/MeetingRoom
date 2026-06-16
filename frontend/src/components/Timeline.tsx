@@ -12,7 +12,7 @@ interface CalendarEvent {
 interface Props {
   roomId: string;
   currentStatus: RoomStatus;
-  onBookRoom: (durationMinutes: number, organizer: string, startTime?: Date) => Promise<string | null>;
+  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
 }
 
@@ -69,8 +69,8 @@ export const Timeline = ({ roomId, currentStatus, onBookRoom, onToast }: Props) 
   };
 
   return (
-    <div className="mt-auto w-full pt-16 border-t border-gray-800">
-      <div className="flex justify-between items-end mb-6 px-12">
+    <div className="w-full pt-4 border-t border-gray-800">
+      <div className="flex justify-between items-end mb-3 px-12">
         <h3 className="text-xl text-gray-500 uppercase tracking-widest font-medium">Napi Beosztás</h3>
       </div>
 
@@ -133,8 +133,8 @@ export const Timeline = ({ roomId, currentStatus, onBookRoom, onToast }: Props) 
       <BookingModal
         isOpen={bookingSlot !== null}
         onClose={() => setBookingSlot(null)}
-        onBook={(durationMinutes, organizer) =>
-          onBookRoom(durationMinutes, organizer, bookingSlot ?? undefined)
+        onBook={(durationMinutes, organizer, title) =>
+          onBookRoom(durationMinutes, organizer, title, bookingSlot ?? undefined)
         }
         onToast={onToast}
         startTime={bookingSlot ?? undefined}

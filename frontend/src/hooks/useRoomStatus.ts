@@ -44,6 +44,7 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = 10000) => {
   const bookRoom = async (
     durationMinutes: number,
     organizer: string,
+    title: string,
     startTime?: Date,
   ): Promise<string | null> => {
     try {
@@ -55,6 +56,7 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = 10000) => {
           body: JSON.stringify({
             durationMinutes,
             organizer,
+            ...(title && { title }),
             ...(startTime && { startTime: startTime.toISOString() }),
           }),
         },
