@@ -76,6 +76,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
           onChange={e => setMeetingTitle(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleBook()}
           placeholder="pl. Design review, Sprint planning..."
+          autoFocus
           className="w-full bg-gray-800 text-white text-xl p-5 rounded-2xl border border-gray-700 focus:border-green-500 focus:outline-none mb-8"
         />
 

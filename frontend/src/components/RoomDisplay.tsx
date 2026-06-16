@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRoomStatus, type RoomStatus } from '../hooks/useRoomStatus';
 import { useRoomNames } from '../hooks/useRooms';
+import { useIdleTimer } from '../hooks/useIdleTimer';
 import { Header } from './Header';
 import { StatusCard } from './StatusCard';
 import { MeetingDetails } from './MeetingDetails';
@@ -132,6 +133,8 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const { isIdle, reset: wakeUp } = useIdleTimer(3 * 60 * 1000);
+
   const allRooms = useRoomNames();
   const otherRooms = allRooms.filter(name => name !== roomName);
 
@@ -240,6 +243,26 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
         onBook={onBookRoom}
         onToast={showToast}
       />
+
+      {/* Idle / screen dim overlay */}
+      {isIdle && (
+        <div
+          className="fixed inset-0 z-300 flex flex-col items-center justify-center cursor-pointer select-none"
+          style={{ background: 'rgba(0,0,0,0.96)' }}
+          onClick={wakeUp}
+          onTouchStart={wakeUp}
+        >
+          <div className={`text-[12rem] font-black uppercase leading-none mb-6 transition-colors ${
+            status.isOccupied ? 'text-red-600/30' : 'text-green-600/30'
+          }`}>
+            {status.isOccupied ? 'Foglalt' : 'Szabad'}
+          </div>
+          <div className="text-3xl font-bold text-white/15 mb-20 uppercase tracking-widest">{roomName}</div>
+          <p className="text-gray-700 text-xs uppercase tracking-[0.3em] animate-pulse">
+            Érintse meg a képernyőt
+          </p>
+        </div>
+      )}
 
       {/* Modal: other rooms with live status */}
       {showOtherRooms && (
