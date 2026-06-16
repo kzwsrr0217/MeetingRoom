@@ -19,6 +19,8 @@ export const DEFAULT_PRESET_ORGANIZERS = [
 export const STORAGE_KEY_HOME_ROOM = 'meetingroom_home';
 export const STORAGE_KEY_PRESET_NAMES = 'meetingroom_preset_names';
 
-// VITE_API_URL is set in docker-compose.yml environment block.
-// For tablets on a local network, change it to the server's LAN IP there.
-export const API_BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api`;
+// VITE_API_URL: set for production builds (e.g. Railway backend URL).
+// In dev/Codespaces: leave unset — Vite proxies /api to localhost:3000.
+export const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
