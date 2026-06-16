@@ -7,6 +7,41 @@ import { MeetingDetails } from './MeetingDetails';
 import { Timeline } from './Timeline';
 import { BookingModal } from './BookingModal';
 
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+
+// Horizontal strip showing upcoming meetings — always visible above the timeline
+const UpcomingStrip = ({ schedule }: { schedule: RoomStatus['schedule'] }) => {
+  const now = Date.now();
+  const upcoming = schedule
+    .filter(e => new Date(e.start).getTime() > now)
+    .filter(e => new Date(e.start).getTime() - now < 5 * 60 * 60 * 1000)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    .slice(0, 4);
+
+  if (upcoming.length === 0) return null;
+
+  return (
+    <div className="shrink-0 px-12 pb-3 flex items-center gap-3 overflow-x-auto scrollbar-none">
+      <span className="text-gray-600 text-xs font-bold uppercase tracking-widest shrink-0">
+        Következő:
+      </span>
+      {upcoming.map((e, i) => (
+        <div
+          key={i}
+          className="shrink-0 flex items-center gap-3 px-5 py-2.5 bg-gray-800/60 border border-gray-700/60 rounded-2xl"
+        >
+          <span className="text-white font-black text-sm tabular-nums">
+            {fmt(e.start)}–{fmt(e.end)}
+          </span>
+          <span className="text-gray-300 text-sm font-medium truncate max-w-48">{e.title}</span>
+          <span className="text-gray-500 text-xs truncate max-w-32">{e.organizer}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 interface Props {
   status: RoomStatus;
   roomName: string;
@@ -169,7 +204,7 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
       </div>
 
       {/* Main layout */}
-      <div className={`flex-1 flex justify-between p-12 pr-20 border-l-16 transition-colors duration-500 ${
+      <div className={`flex-1 min-h-0 flex justify-between p-12 pr-20 border-l-16 transition-colors duration-500 ${
         status.isOccupied ? 'border-red-600' : 'border-green-600'
       }`}>
         <div className="flex flex-col justify-start max-w-4xl z-10">
@@ -189,6 +224,8 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
           />
         </div>
       </div>
+
+      <UpcomingStrip schedule={status.schedule} />
 
       <Timeline
         roomId={roomName}

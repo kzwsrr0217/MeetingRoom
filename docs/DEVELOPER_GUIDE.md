@@ -25,14 +25,9 @@ Room configuration persists in `backend/data/rooms.json`. Meeting data comes fro
 ## Quick Start (Docker Desktop)
 
 ```bash
-# Clone / open the project
 cd c:\Projects\MeetingRoom
-
-# Start everything
 docker compose up
-
 # First run takes 2-3 minutes (npm install inside containers)
-# Subsequent runs are fast
 ```
 
 **Access the app:**
@@ -99,7 +94,7 @@ The live room list comes from `GET /api/rooms` — `ROOMS` in `config.ts` is onl
 |-----|-------------|
 | `http://localhost:5173/` | Kiosk view — first-run shows SetupScreen |
 | `http://localhost:5173/?room=MMH%20Balaton` | Kiosk view forced to a specific room |
-| `http://localhost:5173/admin` | Admin dashboard (desktop-optimised) |
+| `http://localhost:5173/admin` | Admin dashboard (desktop-optimised, no auth for POC) |
 
 **First-run flow:** On first visit, `localStorage` has no home room set — the app renders the **SetupScreen** (full-screen room picker populated from the API). After selecting a room, it is saved to `localStorage` under the key `meetingroom_home` and the kiosk loads.
 
@@ -115,14 +110,14 @@ Set `USE_MOCK_DATA=true` in `docker-compose.yml` (the default).
 
 Mock behavior per room:
 
-| Room | Status |
-|------|--------|
-| Balaton | Always occupied (VIP room) |
-| Mars | Occupied after 14:00 |
-| Séd | Occupied during even hours |
-| Others | Always free |
+| Room | Status | Simulated daily schedule |
+|------|--------|--------------------------|
+| Balaton | Always occupied | 4 meetings throughout the day |
+| Mars | Occupied after 14:00 | 1 meeting at 15:00–17:00 |
+| Séd | Occupied during even hours | Meetings every 2 hours |
+| Others | Always free | No schedule |
 
-Bookings made on the kiosk flip the mock room to occupied until the booking expires (in-memory only, resets on backend restart).
+Bookings made on the kiosk flip the room to occupied until the booking expires (in-memory only, resets on backend restart). The booking title and organiser name are stored and shown on the status card.
 
 ### Live Mode (Microsoft Graph)
 
@@ -163,17 +158,17 @@ Requires a valid access token. See [Updating the Graph API Token](#updating-the-
 MeetingRoom/
 ├── backend/
 │   ├── data/
-│   │   ├── .gitkeep                        # Ensures data/ is tracked
+│   │   ├── .gitkeep                        # Ensures data/ is tracked by git
 │   │   ├── rooms.json                      # Runtime room list (git-ignored)
 │   │   └── config.json                     # Shared preset names (git-ignored)
 │   └── src/
 │       ├── main.ts                         # Entry point, CORS, port
 │       ├── app.module.ts                   # Root module, loads .env
 │       ├── calendar/
-│       │   ├── calendar.module.ts          # Selects Mock vs. Graph service
+│       │   ├── calendar.module.ts          # Selects Mock vs. Graph service at startup
 │       │   ├── calendar.controller.ts      # /api/calendar/* routes
 │       │   ├── calendar.service.ts         # Abstract base (updateToken no-op)
-│       │   ├── mock-calendar.service.ts    # In-memory simulation
+│       │   ├── mock-calendar.service.ts    # In-memory simulation + daily schedule
 │       │   ├── mock-calendar.service.spec.ts
 │       │   ├── calendar.controller.spec.ts
 │       │   ├── graph-calendar.service.ts   # Real Microsoft Graph calls
@@ -191,7 +186,7 @@ MeetingRoom/
 │           ├── app-config.module.ts
 │           └── app-config.controller.spec.ts
 │   └── test/
-│       └── app.e2e-spec.ts                 # E2E integration tests
+│       └── app.e2e-spec.ts                 # E2E integration tests (20 tests)
 ├── frontend/
 │   └── src/
 │       ├── main.tsx                        # React entry, strict mode
@@ -199,18 +194,19 @@ MeetingRoom/
 │       ├── config.ts                       # Static fallback, API URL, storage keys
 │       ├── App.tsx                         # Routing: /admin | SetupScreen | KioskApp
 │       ├── hooks/
-│       │   ├── useRooms.ts                 # API fetch with static fallback
+│       │   ├── useRooms.ts                 # API fetch with static fallback, polls every 5 min
 │       │   ├── useRooms.test.ts
-│       │   ├── useRoomStatus.ts            # API polling, booking logic
-│       │   ├── useCurrentTime.ts           # Live clock
+│       │   ├── useRoomStatus.ts            # API polling, bookRoom returns string|null
+│       │   ├── usePresetNames.ts           # Fetches preset names, caches to localStorage
+│       │   ├── useCurrentTime.ts           # Live clock (re-renders every second)
 │       │   └── useWakeLock.ts              # Screen Wake Lock API
 │       └── components/
-│           ├── RoomDisplay.tsx             # Main kiosk layout
+│           ├── RoomDisplay.tsx             # Main kiosk layout + UpcomingStrip + OtherRoomCard
 │           ├── Header.tsx                  # Clock + long-press reset
-│           ├── StatusCard.tsx              # Free / Occupied + booking btn
+│           ├── StatusCard.tsx              # Free / Occupied + booking button
 │           ├── MeetingDetails.tsx          # Current meeting info + countdown
-│           ├── Timeline.tsx                # Day schedule + advance booking
-│           ├── BookingModal.tsx            # Duration + name picker modal
+│           ├── Timeline.tsx                # Day schedule bar + advance booking slots
+│           ├── BookingModal.tsx            # Title + duration + name picker modal
 │           ├── SetupScreen.tsx             # First-run room picker
 │           ├── AdminView.tsx               # Admin dashboard (/admin)
 │           ├── SetupScreen.test.tsx
@@ -331,9 +327,17 @@ Returns the current status of a room.
   "currentMeetingOrganizer": "Nagy Anna",
   "currentMeetingEnd": "2026-06-16T10:00:00.000Z",
   "nextMeetingStart": null,
-  "schedule": [...]
+  "schedule": [
+    { "start": "...", "end": "...", "title": "...", "organizer": "..." }
+  ]
 }
 ```
+
+`schedule` contains all meetings for today (past, current, and future). The frontend filters it to show upcoming meetings in the next strip above the timeline.
+
+**Errors:**
+- HTTP 401 — Graph token expired or invalid (live mode only)
+- HTTP 503 — Other Graph API failure
 
 ### POST `/calendar/room/:roomId/book`
 
@@ -341,16 +345,23 @@ Creates a new booking.
 
 **Body:**
 ```json
-{ "durationMinutes": 30, "organizer": "Kovács Péter", "startTime": "2026-06-16T10:00:00.000Z" }
+{
+  "durationMinutes": 30,
+  "organizer": "Kovács Péter",
+  "title": "Design review",
+  "startTime": "2026-06-16T10:00:00.000Z"
+}
 ```
 
-`startTime` optional — omit for immediate booking.
+`title` optional — defaults to `"Gyors foglalás (X perc)"` in mock mode or `"Kiosk booking: <organizer>"` in live mode.  
+`startTime` optional — omit for an immediate booking.
 
-**Response:** `true` (HTTP 201). **Error:** HTTP 400 if `durationMinutes` missing.
+**Response:** `true` (HTTP 201).  
+**Errors:** HTTP 400 if `durationMinutes` missing; HTTP 401 if token expired (live mode).
 
 ### POST `/calendar/room/:roomId/checkin`
 
-Confirms check-in (POC stub).
+Confirms check-in (POC stub, no Outlook write).
 
 **Response:** `{ "success": true }`
 
@@ -365,12 +376,12 @@ cd backend
 npm test
 ```
 
-Runs all `*.spec.ts` files. Currently **70 tests** across 5 suites:
+Runs all `*.spec.ts` files. Currently **71 tests** across 5 suites:
 - `mock-calendar.service.spec.ts` — 15 tests
 - `calendar.controller.spec.ts` — 9 tests
 - `rooms.service.spec.ts` — 15 tests
 - `rooms.controller.spec.ts` — 13 tests
-- `app-config.controller.spec.ts` — 18 tests
+- `app-config.controller.spec.ts` — 19 tests
 
 ### Backend e2e tests
 
@@ -379,7 +390,7 @@ cd backend
 npx jest --config ./test/jest-e2e.json --forceExit
 ```
 
-5 tests against a real in-process NestJS app in mock mode.
+**20 tests** against a real in-process NestJS app in mock mode. Covers health, room CRUD, config endpoints, and booking.
 
 ### Frontend component tests (Vitest)
 
@@ -388,8 +399,8 @@ cd frontend
 npm test
 ```
 
-Runs all `*.test.ts(x)` files. Currently **24 tests** across 3 files:
-- `SetupScreen.test.tsx` — 4 tests
+Runs all `*.test.ts(x)` files. Currently **30 tests** across 3 files:
+- `SetupScreen.test.tsx` — 10 tests
 - `BookingModal.test.tsx` — 10 tests
 - `hooks/useRooms.test.ts` — 10 tests
 
@@ -399,7 +410,7 @@ Runs all `*.test.ts(x)` files. Currently **24 tests** across 3 files:
 cd backend && npm test && npx jest --config ./test/jest-e2e.json --forceExit; cd ../frontend && npm test -- --run
 ```
 
-Total: **99 tests** (70 unit + 5 e2e + 24 frontend).
+Total: **121 tests** (71 unit + 20 e2e + 30 frontend).
 
 ---
 

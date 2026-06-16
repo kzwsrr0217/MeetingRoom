@@ -1,4 +1,3 @@
-// backend/src/calendar/calendar.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CalendarController } from './calendar.controller';
@@ -7,35 +6,30 @@ import { MockCalendarService } from './mock-calendar.service';
 import { GraphCalendarService } from './graph-calendar.service';
 
 @Module({
-  imports: [ConfigModule], // Biztosítjuk, hogy a ConfigService elérhető legyen
+  imports: [ConfigModule],
   controllers: [CalendarController],
   providers: [
     {
-      // FONTOS: Ahhoz, hogy ez működjön, a CalendarService-nek egy "abstract class"-nak 
-      // kell lennie, nem pedig "interface"-nek (a TypeScript az interface-eket törli futásidőben).
+      // CalendarService must be an abstract class, not an interface —
+      // TypeScript erases interfaces at runtime so they can't be used as injection tokens.
       provide: CalendarService,
-      
-      // A Factory futásidőben dönti el, melyiket inicializálja
-useFactory: (configService: ConfigService) => {
-        // Kiolvassuk a nyers értéket
+      useFactory: (configService: ConfigService) => {
         const rawValue = configService.get<string>('USE_MOCK_DATA');
-        
-        // EZ A RÖNTGEN: Kiírjuk a terminálba induláskor!
-        console.log(`\n🔍 [DEBUG] A .env-ből olvasott érték: "${rawValue}"`);
-        
-        // Ha nem kifejezetten 'false' (szóközök nélkül), akkor Mock módban marad
+
+        console.log(`\n🔍 [DEBUG] USE_MOCK_DATA from .env: "${rawValue}"`);
+
+        // Any value other than the exact string 'false' keeps mock mode active
         const useMock = rawValue?.trim() !== 'false';
-        
+
         if (useMock) {
-          console.log('👷‍♂️ FIGYELEM: MockCalendarService betöltve (Teszt mód)\n');
+          console.log('👷 WARNING: MockCalendarService loaded (mock mode)\n');
           return new MockCalendarService();
         } else {
-          console.log('🚀 FIGYELEM: GraphCalendarService betöltve (Éles mód)\n');
+          console.log('🚀 WARNING: GraphCalendarService loaded (live mode)\n');
           return new GraphCalendarService();
         }
       },
-      // Itt már csak a ConfigService-t kell injektálni a Factory-ba
-      inject: [ConfigService], 
+      inject: [ConfigService],
     },
   ],
   exports: [CalendarService],

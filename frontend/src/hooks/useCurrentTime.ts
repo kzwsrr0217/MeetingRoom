@@ -5,7 +5,7 @@ export const useCurrentTime = () => {
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer); // Boy scout rule: takarítás
+    return () => clearInterval(timer);
   }, []);
 
   return {

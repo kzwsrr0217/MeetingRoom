@@ -27,24 +27,22 @@ export class GraphCalendarService extends CalendarService {
     console.log('[GraphCalendarService] Token updated via admin UI');
   }
 
-async getRoomStatus(roomId: string): Promise<any> {
+  async getRoomStatus(roomId: string): Promise<any> {
     try {
-      // 1. Kiszámoljuk a mai nap kezdetét és végét
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date();
       endOfDay.setHours(23, 59, 59, 999);
 
-      // 2. Lekérjük a teljes mai napot az Outlookból (a calendarView garantálja az ismétlődő események kibontását is)
+      // calendarView expands recurring events, unlike /events
       const result = await this.graphClient
         .api(`/me/calendarview?startDateTime=${startOfDay.toISOString()}&endDateTime=${endOfDay.toISOString()}`)
-        .header('Prefer', 'outlook.timezone="UTC"') // Biztosítjuk a helyes időzónát
+        .header('Prefer', 'outlook.timezone="UTC"')
         .get();
 
       const events = result.value || [];
       const now = new Date();
 
-      // 3. Megkeressük, van-e ÉPP MOST futó esemény
       const currentEvent = events.find((e: any) => {
         const start = new Date(e.start.dateTime);
         const end = new Date(e.end.dateTime);
@@ -53,20 +51,17 @@ async getRoomStatus(roomId: string): Promise<any> {
 
       const isOccupied = !!currentEvent;
 
-      // 4. Formázzuk a teljes napi listát a Frontend Timeline-nak
       const dailySchedule = events.map((e: any) => ({
         start: e.start.dateTime,
         end: e.end.dateTime,
         title: e.subject || 'Foglalt',
-        organizer: e.organizer?.emailAddress?.name || 'Rendszer'
+        organizer: e.organizer?.emailAddress?.name || 'Rendszer',
       }));
 
-      // 5. Megkeressük a következő esemény kezdetét
       const nextEvent = events
         .filter((e: any) => new Date(e.start.dateTime) > now)
         .sort((a: any, b: any) => new Date(a.start.dateTime).getTime() - new Date(b.start.dateTime).getTime())[0];
 
-      // 6. Visszaküldjük a kiegészített adatcsomagot
       return {
         roomId,
         isOccupied,
@@ -74,20 +69,20 @@ async getRoomStatus(roomId: string): Promise<any> {
         currentMeetingOrganizer: isOccupied ? currentEvent.organizer?.emailAddress?.name ?? 'Ismeretlen szervező' : null,
         currentMeetingEnd: isOccupied ? currentEvent.end.dateTime : null,
         nextMeetingStart: nextEvent ? nextEvent.start.dateTime : null,
-        schedule: dailySchedule
+        schedule: dailySchedule,
       };
     } catch (error: any) {
-      console.error('Graph API hiba a lekérdezésnél:', error.body || error);
+      console.error('Graph API error in getRoomStatus:', error.body || error);
       throw error;
     }
   }
 
   async bookRoom(roomId: string, durationMinutes: number, organizer: string, title?: string, startTime?: string): Promise<boolean> {
-    console.log(`\n🔄 [GRAPH API] Kérés indítása az Outlook felé...`);
+    console.log(`\n🔄 [GRAPH API] Sending booking request to Outlook...`);
 
     const start = startTime ? new Date(startTime) : new Date();
     const end = new Date(start.getTime() + durationMinutes * 60000);
-    const subject = title?.trim() ? title.trim() : `Kioszk foglalás: ${organizer}`;
+    const subject = title?.trim() ? title.trim() : `Kiosk booking: ${organizer}`;
 
     const event = {
       subject,
@@ -97,11 +92,11 @@ async getRoomStatus(roomId: string): Promise<any> {
 
     try {
       const response = await this.graphClient.api('/me/events').post(event);
-      console.log(`✅ [GRAPH API SIKER] Az Outlook elfogadta! Esemény ID: ${response.id}\n`);
+      console.log(`✅ [GRAPH API SUCCESS] Event created. ID: ${response.id}\n`);
       return true;
 
     } catch (error: any) {
-      console.error(`❌ [GRAPH API HIBA] A Microsoft elutasította a kérést!`);
+      console.error(`❌ [GRAPH API ERROR] Request rejected by Microsoft`);
       if (error.body) {
         console.error(JSON.stringify(error.body, null, 2));
       } else {

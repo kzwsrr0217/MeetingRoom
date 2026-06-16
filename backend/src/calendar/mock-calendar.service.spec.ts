@@ -85,7 +85,7 @@ describe('MockCalendarService', () => {
     });
 
     it('booking flips a free room to occupied immediately', async () => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00')); // Séd is free at odd hour
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00')); // odd hour — Séd is free
       await service.bookRoom('MMH Séd', 30, 'Kovács Péter');
       const status = await service.getRoomStatus('MMH Séd');
       expect(status.isOccupied).toBe(true);

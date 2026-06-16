@@ -8,7 +8,7 @@ Recommendations are grouped by priority. Items marked **[POC BLOCKER]** should b
 
 ### 1. [POC BLOCKER] Token expires every hour — manual process is fragile
 
-**Problem:** `TEMP_TOKEN` in `graph-calendar.service.ts` is a hardcoded 1-hour bearer token. When it expires, the app silently stops showing real calendar data and shows a connection error.
+**Problem:** `GRAPH_TEMP_TOKEN` in `.env` is a manually obtained 1-hour bearer token. When it expires, the frontend shows a specific error: "A Microsoft Graph token lejárt" with a link to /admin. The admin dashboard shows remaining minutes and allows hot-swap without restart.
 
 **Immediate fix (POC):** Set `USE_MOCK_DATA=true` for demos where token refresh isn't practical. The mock data is visually identical to live data.
 
@@ -39,64 +39,26 @@ This requires the Azure AD app registration to have **application permissions** 
 
 ### 2. [POC BLOCKER] Graph API reads from the token user's personal calendar
 
-**Problem:** The current `getRoomStatus` call uses `/me/calendarview` which reads the signed-in user's personal calendar — not the meeting room's calendar. Room availability is correct only if the signed-in user is the one who manages the room mailboxes.
+**Problem:** The current `getRoomStatus` call uses `/me/calendarview` which reads the signed-in user's personal calendar — not the meeting room's calendar. Room availability is correct only if the signed-in user manages the room mailboxes.
 
 **Fix:** Query the room's shared mailbox or room resource directly:
 ```
 /users/{room-email}/calendarview?...
 ```
 
-This requires knowing the email address of each room's Outlook resource mailbox, and the token must have `Calendars.Read` permission on those mailboxes.
+This requires knowing the email address of each room's Outlook resource mailbox (stored in `calendarEmail` on the `Room` object), and the token must have `Calendars.Read` permission on those mailboxes.
 
-**For the POC:** Document which Outlook account's calendar is being displayed, and use the calendar owner's token. Or use mock mode.
-
----
-
-### 3. [POC NICE-TO-HAVE] Add a visible token expiry warning
-
-**Problem:** When the token expires, the user sees a generic "connection error" in Hungarian with no indication of what happened or when it will be fixed.
-
-**Quick fix in `graph-calendar.service.ts`:** Log a clear warning with timestamp when a Graph API call fails with 401:
-```typescript
-if (error.statusCode === 401) {
-  console.error(`[TOKEN EXPIRED] ${new Date().toISOString()} — Replace TEMP_TOKEN and restart backend.`);
-}
-```
-
-**Better fix:** Add an `/api/health` endpoint that returns token status, and show a small indicator in the frontend header when the backend is in degraded state.
+**For the POC:** Use the calendar owner's token, or use mock mode.
 
 ---
 
 ## Pre-Production
 
-### 4. [PRE-PROD] Frontend API URL is hardcoded
+### 3. [PRE-PROD] Use production builds, not dev servers
 
-**Problem:** `frontend/src/hooks/useRoomStatus.ts` has:
-```typescript
-const API_BASE = 'http://localhost:3000/api';
-```
+**Problem:** `docker-compose.yml` runs `npm run start:dev` (NestJS) and `npm run dev` (Vite). Dev servers are slower, expose source maps, and are not designed for multiple concurrent tablet clients.
 
-The `VITE_API_URL` environment variable set in `docker-compose.yml` is never read. This works on Docker Desktop (all ports are on localhost) but will break in any other environment.
-
-**Fix:**
-```typescript
-// frontend/src/hooks/useRoomStatus.ts
-const API_BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api`;
-```
-
-After this change, you can configure the backend URL at deploy time without changing source code.
-
----
-
-### 5. [PRE-PROD] Use production builds, not dev servers
-
-**Problem:** `docker-compose.yml` runs `npm run start:dev` (NestJS) and `npm run dev` (Vite). Dev servers:
-- Are slower
-- Expose source maps (leaks code)
-- Not designed for production workloads
-- Vite dev server is not designed to serve multiple concurrent tablet clients
-
-**Fix:** Create a separate `docker-compose.prod.yml` with proper build stages:
+**Fix:** Create a `docker-compose.prod.yml` with proper multi-stage builds:
 
 ```dockerfile
 # backend/Dockerfile
@@ -131,7 +93,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 ---
 
-### 6. [PRE-PROD] Restrict CORS
+### 4. [PRE-PROD] Restrict CORS
 
 **Problem:** `backend/src/main.ts` enables CORS for all origins:
 ```typescript
@@ -147,9 +109,9 @@ app.enableCors({
 
 ---
 
-### 7. [PRE-PROD] Add Docker health checks
+### 5. [PRE-PROD] Add Docker health checks
 
-**Problem:** `docker compose ps` shows containers as "running" even if the application inside has crashed or the backend is still starting up. The frontend `depends_on: backend` doesn't wait for the backend to be ready — just for the container to start.
+**Problem:** `docker compose ps` shows containers as "running" even if the app inside has crashed. The `depends_on: backend` in `docker-compose.yml` only waits for the container to start, not for the backend to be ready.
 
 **Fix in `docker-compose.yml`:**
 ```yaml
@@ -168,19 +130,11 @@ services:
         condition: service_healthy
 ```
 
-Also add a `/api/health` endpoint to the backend:
-```typescript
-@Get('health')
-health() {
-  return { status: 'ok', timestamp: new Date().toISOString() };
-}
-```
-
 ---
 
-### 8. [PRE-PROD] Add a `.env.example` file
+### 6. [PRE-PROD] Add a `.env.example` file
 
-Document all required environment variables so new developers know what to configure:
+Document all required environment variables:
 
 ```env
 # backend/.env.example
@@ -195,24 +149,27 @@ Commit `.env.example` to git; `.env` stays in `.gitignore`.
 
 ---
 
-### 9. [PRE-PROD] Map room names to Exchange room mailboxes
+### 7. [PRE-PROD] Map room names to Exchange room mailboxes
 
-**Problem:** Room IDs like `"MMH Séd"` are UI labels — they don't correspond to actual Outlook room resource mailboxes. All rooms currently read from the same calendar (the token user's).
+**Problem:** Room IDs like `"MMH Séd"` are UI labels — they don't correspond to actual Outlook room resource mailboxes. All rooms currently read from the same calendar (the token user's personal calendar).
 
-**Fix:** Create a room mapping in backend configuration:
+**Fix:** Use the `calendarEmail` field already on the `Room` model in `graph-calendar.service.ts`:
+
 ```typescript
-const ROOM_MAILBOXES: Record<string, string> = {
-  'MMH Séd': 'sed.terem@company.com',
-  'MMH Balaton': 'balaton.terem@company.com',
-  // ...
-};
+// If the room has a calendarEmail configured, query that mailbox directly
+const email = room?.calendarEmail;
+const endpoint = email
+  ? `/users/${email}/calendarview?...`
+  : `/me/calendarview?...`;
 ```
 
-Then in `graph-calendar.service.ts`, query the correct mailbox:
-```typescript
-const email = ROOM_MAILBOXES[roomId];
-const endpoint = email ? `/users/${email}/calendarview` : `/me/calendarview`;
-```
+---
+
+### 8. [PRE-PROD] Admin page authentication
+
+**Problem:** The admin dashboard at `/admin` has no authentication. In the POC this is intentional for simplicity, but it must be secured before exposing beyond the local network.
+
+**Planned fix:** When deployed on Azure, implement SSO via Azure AD so only selected users can access `/admin`. The frontend already has a routing separation (`/admin` vs. `/`) that makes this easy to add as a route guard.
 
 ---
 
@@ -220,7 +177,7 @@ const endpoint = email ? `/users/${email}/calendarview` : `/me/calendarview`;
 
 Before deploying to Kubernetes, complete all [PRE-PROD] items above, then:
 
-1. **Create production Docker images** (item 5 above) and push to a container registry
+1. **Create production Docker images** and push to a container registry
 2. **Create Kubernetes manifests:**
    - `Deployment` for backend (1+ replicas)
    - `Deployment` for frontend (nginx, 1+ replicas)
@@ -255,9 +212,8 @@ With Managed Identity, the backend can call Microsoft Graph without any stored c
 |------|---------|
 | Internationalization (i18n) | Allow English UI for non-Hungarian users |
 | Audit log (database) | Track who booked what and when |
-| Meeting extension button | Extend current meeting by 15/30 min |
+| Meeting extension button | Extend current meeting by 15/30 min from the kiosk |
 | Cancellation button | Cancel a booking directly from the kiosk |
 | Screen saver / idle mode | Blank screen after inactivity to save tablet display |
-| Multi-language organizer name | Currently fallback is "Nagy Anna (Design Team)" hardcoded in hook |
 | E-ink / low-power display support | Static HTML alternative for e-ink tablets outside rooms |
-| Automated token refresh status page | Admin dashboard showing token expiry countdown |
+| Automated token refresh status page | Admin dashboard showing token expiry countdown with auto-alert |

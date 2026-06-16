@@ -9,14 +9,13 @@ interface Props {
 }
 
 export const StatusCard = ({ status, onOpenBookingModal, onCheckIn }: Props) => {
-  // LocalStorage-ból olvassuk ki, hogy be van-e csekkolva (így frissítéskor megmarad)
   const [hasCheckedIn, setHasCheckedIn] = useState(() => {
     return localStorage.getItem(`checkin_${status.roomId}`) === 'true';
   });
 
   const isFree = !status.isOccupied;
 
-  // Ha véget ér a meeting (vagy változik a címe), reseteljük a check-in-t
+  // Reset check-in when the meeting ends or a different meeting starts
   useEffect(() => {
     if (isFree) {
       setHasCheckedIn(false);

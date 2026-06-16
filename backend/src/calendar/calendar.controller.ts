@@ -42,7 +42,6 @@ export class CalendarController {
   @Post('calendar/room/:roomId/book')
   async bookRoom(
     @Param('roomId') roomId: string,
-    // ÚJ: startTime hozzáadva a Body-hoz
     @Body() bookingData: { durationMinutes: number; organizer: string; title?: string; startTime?: string }
   ) {
     this.logger.log(`Beérkező adatok: ${JSON.stringify(bookingData)}`);
