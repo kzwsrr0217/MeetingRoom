@@ -21,6 +21,7 @@ const mockCalendarService = {
   checkIn: jest.fn().mockResolvedValue(true),
   releaseNow: jest.fn().mockResolvedValue(true),
   extendMeeting: jest.fn().mockResolvedValue(true),
+  getDiagnostics: jest.fn().mockReturnValue({ lastOkAt: null, lastErrorAt: null }),
 };
 
 describe('CalendarController', () => {

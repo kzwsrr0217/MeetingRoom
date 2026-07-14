@@ -24,11 +24,21 @@ export class CalendarController {
     const useMock = this.configService.get<string>('USE_MOCK_DATA')?.trim() !== 'false';
     const azureConfigured =
       !!process.env.AZURE_TENANT_ID && !!process.env.AZURE_CLIENT_ID && !!process.env.AZURE_CLIENT_SECRET;
+    const auth = useMock
+      ? 'none'
+      : azureConfigured
+        ? 'msal'
+        : process.env.GRAPH_TEMP_TOKEN
+          ? 'temp-token'
+          : 'unconfigured';
     return {
       status: 'ok',
       mode: useMock ? 'mock' : 'graph',
-      // Observability: how the backend authenticates to Graph in live mode
-      auth: useMock ? 'none' : azureConfigured ? 'msal' : process.env.GRAPH_TEMP_TOKEN ? 'temp-token' : 'unconfigured',
+      auth,
+      // Readiness signal: in live mode, whether the app is credential-ready and the
+      // last Graph call outcome (no extra API call is made here).
+      ready: useMock || auth !== 'unconfigured',
+      ...(useMock ? {} : { graph: this.calendarService.getDiagnostics() }),
       timestamp: new Date().toISOString(),
     };
   }

@@ -35,6 +35,14 @@ export abstract class CalendarService {
   // No-op in mock mode; GraphCalendarService overrides to re-init the Graph client
   updateToken(_token: string): void {}
 
+  // ── Diagnostics for /health (readiness) — updated without extra Graph calls ──
+  protected lastGraphOkAt: string | null = null;
+  protected lastGraphErrorAt: string | null = null;
+
+  getDiagnostics(): { lastOkAt: string | null; lastErrorAt: string | null } {
+    return { lastOkAt: this.lastGraphOkAt, lastErrorAt: this.lastGraphErrorAt };
+  }
+
   // ── Shared lifecycle state helpers ──────────────────────────────────────────
 
   private key(roomId: string, startISO: string): string {

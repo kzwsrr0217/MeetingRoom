@@ -207,8 +207,10 @@ export class GraphCalendarService extends CalendarService {
       };
 
       this.statusCache.set(roomId, { status, expires: Date.now() + this.cacheTtlMs });
+      this.lastGraphOkAt = new Date().toISOString();
       return status;
     } catch (error: any) {
+      this.lastGraphErrorAt = new Date().toISOString();
       this.logger.error(`Graph API error in getRoomStatus (${roomId})`, error.body ?? error.message ?? error);
       throw error;
     }
