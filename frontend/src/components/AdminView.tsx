@@ -8,6 +8,12 @@ import {
 
 interface Health { status: string; mode: 'mock' | 'graph'; timestamp: string; }
 interface TokenStatus { hasToken: boolean; expiresAt: string | null; }
+interface Issue { id: string; roomId: string; type: string; note: string; createdAt: string; }
+
+const ISSUE_TYPE_LABELS: Record<string, string> = {
+  av: '📽️ Projektor / AV', climate: '🌡️ Fűtés / Klíma', cleanliness: '🧹 Tisztaság',
+  furniture: '🪑 Bútor', other: '⚠️ Egyéb',
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -181,6 +187,18 @@ export const AdminView = () => {
   const [adminKeyInput, setAdminKeyInput] = useState(getAdminKey());
   const [adminKeyMsg, setAdminKeyMsg] = useState<string | null>(null);
 
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const fetchIssues = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/issues`, { headers: adminHeaders() });
+      if (res.ok) setIssues(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+  const dismissIssue = async (id: string) => {
+    await fetch(`${API_BASE}/issues/${id}`, { method: 'DELETE', headers: adminHeaders() });
+    setIssues(prev => prev.filter(i => i.id !== id));
+  };
+
   const saveAdminKey = () => {
     localStorage.setItem(STORAGE_KEY_ADMIN_KEY, adminKeyInput.trim());
     setAdminKeyMsg('Admin kulcs mentve ebben a böngészőben.');
@@ -220,9 +238,10 @@ export const AdminView = () => {
     fetchHealth();
     fetchTokenStatus();
     fetchPresetNames();
-    const id = setInterval(() => { fetchHealth(); fetchTokenStatus(); }, ADMIN_STATUS_POLL_MS);
+    fetchIssues();
+    const id = setInterval(() => { fetchHealth(); fetchTokenStatus(); fetchIssues(); }, ADMIN_STATUS_POLL_MS);
     return () => clearInterval(id);
-  }, [fetchHealth, fetchTokenStatus, fetchPresetNames]);
+  }, [fetchHealth, fetchTokenStatus, fetchPresetNames, fetchIssues]);
 
   // ── Room management ─────────────────────────────────────────────────────────
 
@@ -496,6 +515,44 @@ export const AdminView = () => {
               </p>
             </Card>
           </div>
+        </div>
+
+        {/* ── Reported issues ────────────────────────────────────────────────── */}
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <SectionHeading>Bejelentett hibák</SectionHeading>
+            {issues.length > 0 && (
+              <span className="text-xs font-black px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">{issues.length}</span>
+            )}
+          </div>
+          <Card>
+            {issues.length === 0 ? (
+              <p className="text-gray-600 text-sm">Nincs bejelentett hiba.</p>
+            ) : (
+              <div className="space-y-2">
+                {issues.map(issue => (
+                  <div key={issue.id} className="flex items-start justify-between gap-4 border-b border-gray-800/50 pb-2 last:border-0">
+                    <div className="min-w-0">
+                      <p className="text-white text-sm font-bold">
+                        {ISSUE_TYPE_LABELS[issue.type] ?? issue.type}
+                        <span className="text-gray-500 font-normal ml-2">· {issue.roomId}</span>
+                      </p>
+                      {issue.note && <p className="text-gray-400 text-xs mt-0.5">{issue.note}</p>}
+                      <p className="text-gray-700 text-xs mt-0.5">
+                        {new Date(issue.createdAt).toLocaleString('hu-HU')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => dismissIssue(issue.id)}
+                      className="text-xs text-gray-500 border border-gray-700 px-3 py-1 rounded-lg hover:border-green-600 hover:text-green-400 transition-colors shrink-0"
+                    >
+                      Megoldva ✓
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* ── System info ────────────────────────────────────────────────────── */}

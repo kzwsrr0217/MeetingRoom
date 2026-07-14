@@ -364,4 +364,39 @@ describe('API routes (e2e)', () => {
       expect(res.body).toEqual(['Alice', 'Bob']);
     });
   });
+
+  // ── Issues ────────────────────────────────────────────────────────────────────
+
+  describe('Issues API', () => {
+    it('POST /api/issues creates an issue', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/issues')
+        .send({ roomId: 'mmh-sed', type: 'av', note: 'Projektor nem indul' })
+        .expect(201);
+      expect(res.body.id).toBeDefined();
+      expect(res.body.type).toBe('av');
+      expect(res.body.roomId).toBe('mmh-sed');
+    });
+
+    it('POST /api/issues returns 400 for an unknown type', () => {
+      return request(app.getHttpServer())
+        .post('/api/issues')
+        .send({ roomId: 'mmh-sed', type: 'nonsense' })
+        .expect(400);
+    });
+
+    it('POST /api/issues returns 400 when roomId is missing', () => {
+      return request(app.getHttpServer())
+        .post('/api/issues')
+        .send({ type: 'av' })
+        .expect(400);
+    });
+
+    it('GET /api/issues returns an array', () => {
+      return request(app.getHttpServer())
+        .get('/api/issues')
+        .expect(200)
+        .expect(res => expect(Array.isArray(res.body)).toBe(true));
+    });
+  });
 });

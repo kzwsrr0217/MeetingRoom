@@ -9,6 +9,7 @@ import { MeetingDetails } from './MeetingDetails';
 import { Timeline } from './Timeline';
 import { BookingModal } from './BookingModal';
 import { BookFromPhone } from './BookFromPhone';
+import { ReportIssueModal } from './ReportIssueModal';
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
@@ -137,6 +138,7 @@ const OtherRoomCard = ({
 export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, onCheckIn, onRelease, onExtend }: Props) => {
   const [showOtherRooms, setShowOtherRooms] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showIssueModal, setShowIssueModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -206,6 +208,15 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
           Tárgyalók Állapota
         </button>
 
+        {/* Report issue button */}
+        <button
+          onClick={() => setShowIssueModal(true)}
+          title="Hiba bejelentése"
+          className="px-4 py-3 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-amber-400 rounded-2xl font-bold hover:bg-gray-700 hover:border-amber-500 shadow-xl active:scale-95 transition-all cursor-pointer"
+        >
+          ⚠️ Hiba
+        </button>
+
         {/* Fullscreen button */}
         <button
           onClick={toggleFullscreen}
@@ -265,6 +276,14 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
         onBook={(durationMinutes, organizer, title, isPrivate) =>
           onBookRoom(durationMinutes, organizer, title, undefined, isPrivate)
         }
+        onToast={showToast}
+      />
+
+      {/* Report issue modal */}
+      <ReportIssueModal
+        isOpen={showIssueModal}
+        onClose={() => setShowIssueModal(false)}
+        roomId={roomId}
         onToast={showToast}
       />
 
