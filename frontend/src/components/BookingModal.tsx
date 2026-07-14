@@ -4,7 +4,7 @@ import { usePresetNames } from '../hooks/usePresetNames';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onBook: (durationMinutes: number, organizer: string, title: string) => Promise<string | null>;
+  onBook: (durationMinutes: number, organizer: string, title: string, isPrivate: boolean) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
   startTime?: Date; // When set, shows "Előrefoglalás: HH:MM" and adjusts end-time toast
 }
@@ -16,6 +16,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
   const [customName, setCustomName] = useState('');
   const [showCustom, setShowCustom] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -28,7 +29,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
     setIsSubmitting(true);
     onToast('Foglalás rögzítése...', 'success');
 
-    const error = await onBook(duration, organizer, meetingTitle.trim());
+    const error = await onBook(duration, organizer, meetingTitle.trim(), isPrivate);
     setIsSubmitting(false);
 
     if (error === null) {
@@ -40,6 +41,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
       setCustomName('');
       setShowCustom(false);
       setMeetingTitle('');
+      setIsPrivate(false);
       setDuration(30);
       onClose();
     } else {
@@ -135,6 +137,23 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
             className="w-full bg-gray-800 text-white text-xl p-5 rounded-2xl border border-gray-700 focus:border-blue-500 focus:outline-none mb-4"
           />
         )}
+
+        {/* Private toggle (GDPR) */}
+        <button
+          type="button"
+          onClick={() => setIsPrivate(p => !p)}
+          className={`mt-6 w-full flex items-center gap-3 px-5 py-4 rounded-2xl border-2 text-left transition-all ${
+            isPrivate ? 'bg-blue-500/20 border-blue-500' : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+          }`}
+        >
+          <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+            isPrivate ? 'bg-blue-500 text-white' : 'bg-gray-700 text-transparent'
+          }`}>✓</span>
+          <span>
+            <span className="block text-white font-bold">Privát megbeszélés</span>
+            <span className="block text-gray-500 text-sm">A tárgy és a szervező nem jelenik meg a kijelzőn.</span>
+          </span>
+        </button>
 
         {/* Actions */}
         <div className="flex gap-4 mt-6">

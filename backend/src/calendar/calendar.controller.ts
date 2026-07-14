@@ -56,7 +56,7 @@ export class CalendarController {
   @Post('calendar/room/:roomId/book')
   async bookRoom(
     @Param('roomId') roomId: string,
-    @Body() bookingData: { durationMinutes: number; organizer: string; title?: string; startTime?: string },
+    @Body() bookingData: { durationMinutes: number; organizer: string; title?: string; startTime?: string; isPrivate?: boolean },
   ) {
     this.logger.log(`Beérkező adatok: ${JSON.stringify(bookingData)}`);
 
@@ -84,6 +84,7 @@ export class CalendarController {
         bookingData.organizer?.trim() || 'Névtelen foglaló',
         bookingData.title,
         bookingData.startTime,
+        !!bookingData.isPrivate,
       );
       return { success: ok };
     } catch (err: any) {

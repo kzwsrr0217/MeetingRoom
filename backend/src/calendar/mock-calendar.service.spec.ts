@@ -224,6 +224,17 @@ describe('MockCalendarService', () => {
       expect(await service.releaseNow('MMH Tihany')).toBe(false);
     });
 
+    it('masks title and organiser for a private booking', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 30, 'Titkos Szervező', 'Fúziós terv', undefined, true);
+      const status = await service.getRoomStatus('MMH Tihany');
+      expect(status.isOccupied).toBe(true);
+      expect(status.currentMeetingPrivate).toBe(true);
+      expect(status.currentMeetingTitle).toBe('Privát megbeszélés');
+      expect(status.currentMeetingOrganizer).toBeNull();
+      jest.useRealTimers();
+    });
+
     it('extendMeeting moves the end time out', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
       await service.bookRoom('MMH Tihany', 30, 'X'); // ends 11:30

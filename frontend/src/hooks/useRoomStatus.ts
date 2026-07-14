@@ -50,6 +50,7 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS
     organizer: string,
     title: string,
     startTime?: Date,
+    isPrivate?: boolean,
   ): Promise<string | null> => {
     try {
       const response = await fetch(
@@ -62,6 +63,7 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS
             organizer,
             ...(title && { title }),
             ...(startTime && { startTime: startTime.toISOString() }),
+            ...(isPrivate && { isPrivate: true }),
           }),
         },
       );

@@ -50,7 +50,7 @@ interface Props {
   roomName: string;   // display name
   roomId: string;     // stable identifier used in URLs / status keys
   homeRoom: string;
-  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
+  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date, isPrivate?: boolean) => Promise<string | null>;
   onCheckIn: () => Promise<string | null>;
   onRelease: () => Promise<string | null>;
   onExtend: (minutes: number) => Promise<string | null>;
@@ -262,7 +262,9 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
       <BookingModal
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
-        onBook={onBookRoom}
+        onBook={(durationMinutes, organizer, title, isPrivate) =>
+          onBookRoom(durationMinutes, organizer, title, undefined, isPrivate)
+        }
         onToast={showToast}
       />
 

@@ -11,7 +11,7 @@ interface CalendarEvent {
 
 interface Props {
   currentStatus: RoomStatus;
-  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
+  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date, isPrivate?: boolean) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
 }
 
@@ -132,8 +132,8 @@ export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
       <BookingModal
         isOpen={bookingSlot !== null}
         onClose={() => setBookingSlot(null)}
-        onBook={(durationMinutes, organizer, title) =>
-          onBookRoom(durationMinutes, organizer, title, bookingSlot ?? undefined)
+        onBook={(durationMinutes, organizer, title, isPrivate) =>
+          onBookRoom(durationMinutes, organizer, title, bookingSlot ?? undefined, isPrivate)
         }
         onToast={onToast}
         startTime={bookingSlot ?? undefined}

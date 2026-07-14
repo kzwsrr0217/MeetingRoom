@@ -175,6 +175,7 @@ export class GraphCalendarService extends CalendarService {
       let checkInRequired = false;
       let autoReleaseAt: string | null = null;
 
+      let isPrivate = false;
       if (currentEvent) {
         const startISO = parseGraphDateTime(currentEvent.start.dateTime).toISOString();
         const endMs = parseGraphDateTime(currentEvent.end.dateTime).getTime();
@@ -187,14 +188,15 @@ export class GraphCalendarService extends CalendarService {
           checkedIn = flags.checkedIn;
           checkInRequired = flags.checkInRequired;
           autoReleaseAt = flags.autoReleaseAt;
+          isPrivate = ['private', 'confidential'].includes(currentEvent.sensitivity);
         }
       }
 
       const status: RoomStatus = {
         roomId,
         isOccupied: occupied,
-        currentMeetingTitle: occupied ? currentEvent.subject : null,
-        currentMeetingOrganizer: occupied
+        currentMeetingTitle: occupied ? (isPrivate ? 'Privát megbeszélés' : currentEvent.subject) : null,
+        currentMeetingOrganizer: occupied && !isPrivate
           ? currentEvent.organizer?.emailAddress?.name ?? 'Ismeretlen szervező'
           : null,
         currentMeetingEnd: effectiveEndISO,
@@ -204,6 +206,7 @@ export class GraphCalendarService extends CalendarService {
         currentMeetingCheckedIn: checkedIn,
         checkInRequired,
         autoReleaseAt,
+        currentMeetingPrivate: isPrivate,
       };
 
       this.statusCache.set(roomId, { status, expires: Date.now() + this.cacheTtlMs });
@@ -222,6 +225,7 @@ export class GraphCalendarService extends CalendarService {
     organizer: string,
     title?: string,
     startTime?: string,
+    isPrivate?: boolean,
   ): Promise<boolean> {
     const start = startTime ? new Date(startTime) : new Date();
     const end = new Date(start.getTime() + durationMinutes * 60000);
@@ -249,6 +253,7 @@ export class GraphCalendarService extends CalendarService {
       subject,
       start: { dateTime: start.toISOString(), timeZone: 'UTC' },
       end: { dateTime: end.toISOString(), timeZone: 'UTC' },
+      sensitivity: isPrivate ? 'private' : 'normal',
       // Marker so we can safely identify (and only ever mutate) kiosk-created events.
       categories: [KIOSK_CATEGORY],
     };

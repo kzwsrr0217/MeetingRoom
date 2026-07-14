@@ -170,6 +170,21 @@ describe('API routes (e2e)', () => {
     expect(endAfter - endBefore).toBe(15 * 60000);
   });
 
+  it('POST /book with isPrivate masks the meeting in status', async () => {
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Bakony/book')
+      .send({ durationMinutes: 30, organizer: 'Titkos', title: 'Bizalmas', isPrivate: true })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/api/calendar/room/MMH%20Bakony/status')
+      .expect(200);
+
+    expect(res.body.currentMeetingPrivate).toBe(true);
+    expect(res.body.currentMeetingTitle).toBe('Privát megbeszélés');
+    expect(res.body.currentMeetingOrganizer).toBeNull();
+  });
+
   it('POST /extend rejects an invalid duration', () => {
     return request(app.getHttpServer())
       .post('/api/calendar/room/MMH%20Tihany/extend')

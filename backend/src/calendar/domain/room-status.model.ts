@@ -16,4 +16,6 @@ export class RoomStatus {
   checkInRequired?: boolean;
   /** When an unconfirmed meeting will be auto-released as a no-show (ISO), or null. */
   autoReleaseAt?: string | null;
+  /** True when the current meeting is private — title/organiser are masked. */
+  currentMeetingPrivate?: boolean;
 }

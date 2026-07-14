@@ -79,20 +79,27 @@ export const StatusCard = ({ status, onOpenBookingModal, onCheckIn, onRelease, o
 
         {/* Occupied → release / extend controls */}
         {!isFree && (
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
             <button
               onClick={() => run(onRelease, 'Terem felszabadítva.')}
               disabled={busy}
-              className="px-5 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
+              className="px-4 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
             >
-              Vége / Elengedés
+              Vége
             </button>
             <button
               onClick={() => run(() => onExtend(15), '+15 perc hozzáadva.')}
               disabled={busy}
-              className="px-5 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
+              className="px-4 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
             >
               +15 perc
+            </button>
+            <button
+              onClick={() => run(() => onExtend(30), '+30 perc hozzáadva.')}
+              disabled={busy}
+              className="px-4 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
+            >
+              +30 perc
             </button>
           </div>
         )}
