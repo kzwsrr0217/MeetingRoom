@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useRoomStatus, type RoomStatus } from '../hooks/useRoomStatus';
-import { useRoomNames } from '../hooks/useRooms';
+import { useRooms, type Room } from '../hooks/useRooms';
 import { useIdleTimer } from '../hooks/useIdleTimer';
+import { useBurnInProtection } from '../hooks/useBurnInProtection';
 import { Header } from './Header';
 import { StatusCard } from './StatusCard';
 import { MeetingDetails } from './MeetingDetails';
 import { Timeline } from './Timeline';
 import { BookingModal } from './BookingModal';
+import { BookFromPhone } from './BookFromPhone';
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
@@ -45,22 +47,27 @@ const UpcomingStrip = ({ schedule }: { schedule: RoomStatus['schedule'] }) => {
 
 interface Props {
   status: RoomStatus;
-  roomName: string;
+  roomName: string;   // display name
+  roomId: string;     // stable identifier used in URLs / status keys
   homeRoom: string;
   onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
+  onCheckIn: () => Promise<string | null>;
+  onRelease: () => Promise<string | null>;
+  onExtend: (minutes: number) => Promise<string | null>;
 }
 
 // Live status card shown in the "other rooms" modal
 const OtherRoomCard = ({
-  name,
+  room,
   homeRoom,
   onClick,
 }: {
-  name: string;
+  room: Room;
   homeRoom: string;
   onClick: () => void;
 }) => {
-  const { status } = useRoomStatus(name, 15000);
+  const { status } = useRoomStatus(room.id, 15000);
+  const isHome = room.id === homeRoom || room.name === homeRoom;
 
   const occupied = status?.isOccupied ?? null;
   const endTime = status?.currentMeetingEnd ? new Date(status.currentMeetingEnd) : null;
@@ -72,7 +79,7 @@ const OtherRoomCard = ({
     <div
       onClick={onClick}
       className={`p-8 border rounded-4xl flex flex-col gap-3 transition-all cursor-pointer group ${
-        name === homeRoom
+        isHome
           ? 'bg-blue-900/20 border-blue-500'
           : occupied === true
           ? 'bg-red-950/20 border-red-800/60 hover:border-red-600'
@@ -83,7 +90,7 @@ const OtherRoomCard = ({
     >
       <div className="flex justify-between items-center">
         <p className="text-3xl font-black text-white group-hover:text-blue-400 transition-colors">
-          {name}
+          {room.name}
         </p>
         <div
           className={`px-6 py-2 font-black rounded-xl text-sm uppercase tracking-wider ${
@@ -127,16 +134,17 @@ const OtherRoomCard = ({
   );
 };
 
-export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) => {
+export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, onCheckIn, onRelease, onExtend }: Props) => {
   const [showOtherRooms, setShowOtherRooms] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { isIdle, reset: wakeUp } = useIdleTimer(3 * 60 * 1000);
+  const burnIn = useBurnInProtection();
 
-  const allRooms = useRoomNames();
-  const otherRooms = allRooms.filter(name => name !== roomName);
+  const allRooms = useRooms();
+  const otherRooms = allRooms.filter(r => r.id !== roomId && r.name !== roomName);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type });
@@ -154,7 +162,17 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-900 antialiased relative overflow-hidden select-none">
+    <div
+      className="h-screen w-screen flex flex-col bg-gray-900 antialiased relative overflow-hidden select-none"
+      style={{ transform: burnIn.transform, transition: 'transform 1.5s ease-in-out' }}
+    >
+      {/* Night dim overlay — burn-in + power saving outside office hours */}
+      {burnIn.nightDim > 0 && (
+        <div
+          className="fixed inset-0 z-[250] pointer-events-none transition-opacity duration-1000"
+          style={{ background: `rgba(0,0,0,${burnIn.nightDim})` }}
+        />
+      )}
 
       {/* Toast */}
       {toast && (
@@ -217,13 +235,17 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
             <h2 className="text-7xl font-black text-white tracking-tighter uppercase leading-none">{roomName}</h2>
           </div>
           <MeetingDetails status={status} />
+          <BookFromPhone roomId={roomId} />
         </div>
 
         <div className="flex flex-col justify-center min-w-105 z-10">
           <StatusCard
             status={status}
             onOpenBookingModal={() => setShowBookingModal(true)}
-            onCheckIn={() => showToast('Sikeres Check-in!', 'success')}
+            onCheckIn={onCheckIn}
+            onRelease={onRelease}
+            onExtend={onExtend}
+            onToast={showToast}
           />
         </div>
       </div>
@@ -281,14 +303,14 @@ export const RoomDisplay = ({ status, roomName, homeRoom, onBookRoom }: Props) =
               </button>
             </div>
             <div className="grid grid-cols-2 gap-6">
-              {otherRooms.map(name => (
+              {otherRooms.map(room => (
                 <OtherRoomCard
-                  key={name}
-                  name={name}
+                  key={room.id}
+                  room={room}
                   homeRoom={homeRoom}
                   onClick={() => {
                     setShowOtherRooms(false);
-                    window.location.search = `?room=${encodeURIComponent(name)}`;
+                    window.location.search = `?room=${encodeURIComponent(room.id)}`;
                   }}
                 />
               ))}

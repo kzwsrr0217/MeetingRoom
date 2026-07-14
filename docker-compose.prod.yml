@@ -1,0 +1,60 @@
+# Production / Podman compose — builds the real images (no dev servers).
+#
+#   podman-compose -f docker-compose.prod.yml up --build          # live Graph mode
+#   USE_MOCK_DATA=true podman-compose -f docker-compose.prod.yml up --build   # no Azure needed
+#
+# Kiosk UI:   http://localhost:8080         (nginx serves SPA + proxies /api)
+# Admin UI:   http://localhost:8080/admin
+# Backend:    http://localhost:3000/api      (also reachable directly)
+#
+# Secrets: put AZURE_* / ADMIN_API_KEY in a root .env file (chmod 600) — compose
+# reads ${VAR} from it automatically. Never commit that file.
+
+services:
+  backend:
+    build: ./backend
+    container_name: meetingroom_backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - USE_MOCK_DATA=${USE_MOCK_DATA:-false}
+      # Same-origin via the frontend proxy; add the direct backend origin only if needed.
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+      - STATUS_CACHE_TTL_MS=${STATUS_CACHE_TTL_MS:-5000}
+      - CHECKIN_GRACE_MIN=${CHECKIN_GRACE_MIN:-10}
+      - AUTO_RELEASE=${AUTO_RELEASE:-true}
+      # Azure AD app-only auth (leave empty to fall back to a manual token / mock)
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET:-}
+      - GRAPH_TEMP_TOKEN=${GRAPH_TEMP_TOKEN:-}
+    volumes:
+      # Persist rooms.json + config.json across container recreation
+      - ./backend/data:/app/data
+    ports:
+      # Bound to localhost only — tablets never talk to the backend directly, the
+      # frontend nginx proxies /api over the internal container network. Handy for
+      # health checks/debugging on the host. Change BACKEND_PORT if 3000 is taken.
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.podman
+    container_name: meetingroom_frontend
+    ports:
+      # The only port tablets need to reach. Change FRONTEND_PORT to avoid a clash
+      # with the app already running on this VM (e.g. 8090).
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

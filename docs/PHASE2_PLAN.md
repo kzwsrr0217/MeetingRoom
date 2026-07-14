@@ -53,33 +53,25 @@ AZURE_CLIENT_SECRET=   # The secret value you just copied
 
 ---
 
-## Step 2 — Wire up MSAL in the Backend
+## Step 2 — Wire up MSAL in the Backend ✅ ALREADY IMPLEMENTED
 
-The `@azure/msal-node` package is already installed. Replace the manual token logic in `graph-calendar.service.ts`:
+This is **done** in `graph-calendar.service.ts`. The service builds a
+`ConfidentialClientApplication` when `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and
+`AZURE_CLIENT_SECRET` are all present, and falls back to the manual
+`GRAPH_TEMP_TOKEN` otherwise. The correct msal-node method is
+`acquireTokenByClientCredential` (singular):
 
 ```typescript
-import { ConfidentialClientApplication } from '@azure/msal-node';
-
-private msalClient = new ConfidentialClientApplication({
-  auth: {
-    clientId: process.env.AZURE_CLIENT_ID!,
-    authority: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}`,
-    clientSecret: process.env.AZURE_CLIENT_SECRET!,
-  },
+const result = await this.msalClient.acquireTokenByClientCredential({
+  scopes: ['https://graph.microsoft.com/.default'],
 });
-
-private async getAccessToken(): Promise<string> {
-  const result = await this.msalClient.acquireTokenByClientCredentials({
-    scopes: ['https://graph.microsoft.com/.default'],
-  });
-  if (!result?.accessToken) throw new Error('MSAL token acquisition failed');
-  return result.accessToken;
-}
 ```
 
-MSAL handles token caching and refresh automatically — no more 1-hour manual tokens.
-
-Remove `GRAPH_TEMP_TOKEN` from the environment and the admin token-swap UI (or keep it as a debug override).
+MSAL handles token caching and refresh automatically — no more 1-hour manual
+tokens. **Nothing to code** here: just set the three `AZURE_*` env vars (see the
+root `.env.example`) and the backend switches to MSAL on next start. Verify via
+`GET /api/health` → `"auth":"msal"`. `GRAPH_TEMP_TOKEN` can stay as a debug
+override or be removed.
 
 ---
 
@@ -188,10 +180,13 @@ Azure setup
   [ ] Room mailbox emails mapped in the admin dashboard
 
 Backend
-  [ ] MSAL client credentials flow implemented (replaces GRAPH_TEMP_TOKEN)
-  [ ] Room queries use /users/{email}/calendarView
-  [ ] CORS restricted to frontend origin
-  [ ] Secrets stored in Azure Key Vault / secure env
+  [x] MSAL client credentials flow implemented (replaces GRAPH_TEMP_TOKEN)
+  [x] Room queries use /users/{email}/calendarView (when calendarEmail is set)
+  [x] CORS restricted to frontend origin (FRONTEND_URL)
+  [x] Admin/mutating endpoints protected (ADMIN_API_KEY guard)
+  [ ] Real AZURE_* values set + admin consent granted
+  [ ] Room mailbox emails filled in via Admin UI
+  [ ] Secrets stored in Azure Key Vault / secure env (prod)
 
 Frontend
   [ ] Admin page protected with Azure SSO route guard

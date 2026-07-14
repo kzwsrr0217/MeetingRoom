@@ -58,7 +58,11 @@ The dashboard has four sections:
 ### 1. Tárgyalók kezelése — Room Management
 
 - **Live status grid** — all rooms polled every 15 seconds with occupancy, meeting title, organiser, and end time
-- **Add room** — enter a name and optional Outlook calendar email, click **+ Hozzáadás**
+- **Add room** — enter a name and the Outlook resource-mailbox email, click **+ Hozzáadás**
+  - In **live (Graph) mode** the `calendarEmail` is **required** for the room to
+    show real availability, and the mailbox must be added to the app's Application
+    Access Policy group — see [GO_LIVE_TASKS.md → Adding rooms later](GO_LIVE_TASKS.md#adding-or-removing-rooms-later-extensibility).
+    First-time live setup + one test tablet: [GO_LIVE_TASKS.md → First test with ONE tablet](GO_LIVE_TASKS.md#first-test-with-one-tablet--step-by-step).
 - **Edit a room** — click the ✎ pencil button on any room card to rename it or update its email
 - **Delete a room** — click ✕ on a room card (requires confirmation)
 - **Kiosk link** — click ↗ on any card to open that room's kiosk view in a new tab
@@ -96,7 +100,29 @@ All backend configuration lives in `backend/.env`. This file is mounted into the
 USE_MOCK_DATA=true        # "true" = simulated data, no Azure needed
 PORT=3000
 GRAPH_TEMP_TOKEN=         # Paste a fresh delegated Graph token here
+
+# Azure AD app (MSAL) — when all three are set the backend auto-refreshes tokens
+AZURE_TENANT_ID=
+AZURE_CLIENT_ID=
+AZURE_CLIENT_SECRET=
+
+# Security & behaviour
+ADMIN_API_KEY=            # protects admin/mutating endpoints; empty = fail-open (POC)
+CHECKIN_GRACE_MIN=10      # minutes before a no-show is auto-released
+AUTO_RELEASE=true         # mock: free no-show kiosk bookings
+FRONTEND_URL=http://localhost:8080   # CORS allowlist (split dev setup only)
 ```
+
+See `backend/.env.example` and the root `.env.example` for the full list.
+
+> **Admin key:** when `ADMIN_API_KEY` is set, open **Admin → System → Admin kulcs**
+> and paste the same value once per admin browser — it is sent as `x-admin-key`
+> on room/token/preset changes. Panel actions (book/check-in/release/extend) are
+> not admin-gated but are rate limited.
+
+> **Production / Podman:** for the compiled multi-container stack (no dev servers)
+> see [PODMAN.md](PODMAN.md) — `docker-compose.prod.yml` (+ `docker-compose.corpca.yml`
+> on the Zscaler network).
 
 > **Important:** The `USE_MOCK_DATA` value in `docker-compose.yml`'s `environment:` block takes precedence over `.env`. Edit `docker-compose.yml` directly when running in Docker.
 

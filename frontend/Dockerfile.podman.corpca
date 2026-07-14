@@ -1,0 +1,21 @@
+# Frontend image for corporate TLS-inspected networks (e.g. Zscaler).
+# Same as Dockerfile.podman, but trusts a corporate root CA so `npm ci` works
+# through the inspecting proxy. Serves the SPA and proxies /api to the backend.
+#
+# Drop your corporate root CA (PEM) at frontend/corp-ca.pem before building, then:
+#   podman build -f frontend/Dockerfile.podman.corpca -t meetingroom-frontend ./frontend
+#
+# corp-ca.pem is git-ignored — it is environment-specific, not app code.
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY corp-ca.pem /etc/ssl/certs/corp-ca.pem
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/corp-ca.pem
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.podman.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

@@ -3,3 +3,6 @@ dist/
 .env
 *.log
 backend/data/*.json
+
+# Corporate root CA for TLS-inspected build networks (Zscaler etc.) — env-specific
+corp-ca.pem

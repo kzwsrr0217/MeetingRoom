@@ -1,0 +1,13 @@
+# Override for corporate TLS-inspected networks (Zscaler etc.).
+# Use together with the prod compose so the images build with corporate CA trust:
+#
+#   podman compose -f docker-compose.prod.yml -f docker-compose.corpca.yml up --build
+#
+# Requires backend/corp-ca.pem and frontend/corp-ca.pem (git-ignored). See docs/PODMAN.md.
+services:
+  backend:
+    build:
+      dockerfile: Dockerfile.corpca
+  frontend:
+    build:
+      dockerfile: Dockerfile.podman.corpca

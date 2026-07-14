@@ -57,6 +57,18 @@ export class RoomsService implements OnModuleInit {
     return [...this.rooms].sort((a, b) => a.order - b.order);
   }
 
+  /**
+   * Resolve a room by its slug id (e.g. "mmh-sed") OR its display name
+   * (e.g. "MMH Séd"). The kiosk currently addresses rooms by name in the URL,
+   * so both must work until the frontend switches to ids everywhere.
+   */
+  findByIdOrName(idOrName: string): Room | undefined {
+    const needle = idOrName.trim().toLowerCase();
+    return this.rooms.find(
+      (r) => r.id.toLowerCase() === needle || r.name.toLowerCase() === needle,
+    );
+  }
+
   create(name: string, calendarEmail = ''): Room {
     const id = this.slugify(name);
     if (this.rooms.find(r => r.id === id)) {

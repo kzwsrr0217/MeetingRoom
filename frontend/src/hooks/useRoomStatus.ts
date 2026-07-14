@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../config';
+import { API_BASE, STATUS_POLL_MS } from '../config';
 
 export interface RoomStatus {
   roomId: string;
@@ -9,9 +9,13 @@ export interface RoomStatus {
   currentMeetingEnd: string | null;
   nextMeetingStart: string | null;
   schedule: { start: string; end: string; title: string; organizer: string }[];
+  currentMeetingId?: string | null;
+  currentMeetingCheckedIn?: boolean;
+  checkInRequired?: boolean;
+  autoReleaseAt?: string | null;
 }
 
-export const useRoomStatus = (roomId: string, refreshIntervalMs = 10000) => {
+export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS) => {
   const [status, setStatus] = useState<RoomStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,5 +81,30 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = 10000) => {
     }
   };
 
-  return { status, error, bookRoom, fetchStatus };
+  // Shared helper for the on-panel lifecycle actions (check-in / release / extend).
+  // Returns null on success, or an error string the caller can show in a toast.
+  const action = async (path: string, body?: object): Promise<string | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/calendar/room/${encodeURIComponent(roomId)}/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return data.message ?? 'A művelet nem sikerült.';
+      }
+      await fetchStatus();
+      return null;
+    } catch (err) {
+      console.error(`API hiba (${path}):`, err);
+      return 'Nem sikerült kapcsolódni a szerverhez.';
+    }
+  };
+
+  const checkIn = () => action('checkin');
+  const releaseNow = () => action('release');
+  const extend = (minutes: number) => action('extend', { minutes });
+
+  return { status, error, bookRoom, fetchStatus, checkIn, releaseNow, extend };
 };

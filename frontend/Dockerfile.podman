@@ -1,0 +1,14 @@
+# Production image for the Podman / on-prem deployment.
+# No VITE_API_URL: the app calls /api same-origin and nginx proxies to the backend.
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+# Plain server block (not a ${PORT} template) — avoids envsubst surprises.
+COPY nginx.podman.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
