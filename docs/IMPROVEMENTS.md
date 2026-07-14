@@ -26,14 +26,17 @@ const msalClient = new ConfidentialClientApplication({
   },
 });
 
-// In the auth provider:
-const result = await msalClient.acquireTokenByClientCredentials({
+// In the auth provider (note: singular ...Credential):
+const result = await msalClient.acquireTokenByClientCredential({
   scopes: ['https://graph.microsoft.com/.default'],
 });
 // result.accessToken is auto-refreshed by MSAL
 ```
 
-This requires the Azure AD app registration to have **application permissions** (not delegated) for `Calendars.Read` and `Calendars.ReadWrite` on the target mailboxes.
+> **Status:** This is now **implemented** in `graph-calendar.service.ts` and
+> auto-activates when the `AZURE_*` env vars are set. See PHASE2_PLAN.md Step 2.
+
+This requires the Azure AD app registration to have **application permissions** (not delegated) for `Calendars.ReadWrite` on the target mailboxes.
 
 ---
 

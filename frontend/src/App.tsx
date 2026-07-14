@@ -5,6 +5,7 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { RoomDisplay } from './components/RoomDisplay';
 import { SetupScreen } from './components/SetupScreen';
 import { AdminView } from './components/AdminView';
+import { useRooms } from './hooks/useRooms';
 import { STORAGE_KEY_HOME_ROOM } from './config';
 
 // ── Route: /admin ────────────────────────────────────────────────────────────
@@ -30,18 +31,25 @@ function App() {
 function KioskApp({ homeRoom }: { homeRoom: string }) {
   const urlParams = new URLSearchParams(window.location.search);
   const roomFromUrl = urlParams.get('room');
+  // currentRoom / homeRoom are stable ids (older kiosks may hold a name — the
+  // backend resolves either, and we look up the display name below).
   const currentRoom = roomFromUrl ?? homeRoom;
   const isViewingOtherRoom = currentRoom !== homeRoom;
 
-  const { status, error, bookRoom, fetchStatus } = useRoomStatus(currentRoom);
+  const rooms = useRooms();
+  const resolveName = (idOrName: string) =>
+    rooms.find(r => r.id === idOrName || r.name === idOrName)?.name ?? idOrName;
+  const displayName = resolveName(currentRoom);
+
+  const { status, error, bookRoom, fetchStatus, checkIn, releaseNow, extend } = useRoomStatus(currentRoom);
 
   // Kiosk essentials
   useWakeLock();
 
   // Dynamic page title
   useEffect(() => {
-    document.title = `${currentRoom} — Kioszk`;
-  }, [currentRoom]);
+    document.title = `${displayName} — Kioszk`;
+  }, [displayName]);
 
   // Refresh on tab becoming visible
   useEffect(() => {
@@ -83,7 +91,7 @@ function KioskApp({ homeRoom }: { homeRoom: string }) {
           <div className="flex items-center gap-4">
             <span className="text-2xl">⚠️</span>
             <p className="font-bold uppercase tracking-tight">
-              Most a <span className="underline">{currentRoom}</span> állapotát látod
+              Most a <span className="underline">{displayName}</span> állapotát látod
             </p>
           </div>
           <div className="flex items-center gap-6">
@@ -101,9 +109,13 @@ function KioskApp({ homeRoom }: { homeRoom: string }) {
       )}
       <RoomDisplay
         status={status}
-        roomName={currentRoom}
+        roomName={displayName}
+        roomId={currentRoom}
         homeRoom={homeRoom}
         onBookRoom={bookRoom}
+        onCheckIn={checkIn}
+        onRelease={releaseNow}
+        onExtend={extend}
       />
     </>
   );

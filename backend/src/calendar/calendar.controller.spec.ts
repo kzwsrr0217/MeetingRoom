@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { CalendarController } from './calendar.controller';
 import { CalendarService } from './calendar.service';
 import { RoomStatus } from './domain/room-status.model';
@@ -18,6 +18,9 @@ const mockStatus: RoomStatus = {
 const mockCalendarService = {
   getRoomStatus: jest.fn().mockResolvedValue(mockStatus),
   bookRoom: jest.fn().mockResolvedValue(true),
+  checkIn: jest.fn().mockResolvedValue(true),
+  releaseNow: jest.fn().mockResolvedValue(true),
+  extendMeeting: jest.fn().mockResolvedValue(true),
 };
 
 describe('CalendarController', () => {
@@ -39,6 +42,9 @@ describe('CalendarController', () => {
     jest.clearAllMocks();
     mockCalendarService.getRoomStatus.mockResolvedValue(mockStatus);
     mockCalendarService.bookRoom.mockResolvedValue(true);
+    mockCalendarService.checkIn.mockResolvedValue(true);
+    mockCalendarService.releaseNow.mockResolvedValue(true);
+    mockCalendarService.extendMeeting.mockResolvedValue(true);
   });
 
   describe('health()', () => {
@@ -77,10 +83,22 @@ describe('CalendarController', () => {
         durationMinutes: 30,
         organizer: 'Kovács Péter',
       });
-      expect(result).toBe(true);
+      expect(result).toEqual({ success: true });
       expect(mockCalendarService.bookRoom).toHaveBeenCalledWith(
         'MMH Séd', 30, 'Kovács Péter', undefined, undefined,
       );
+    });
+
+    it('rejects a duration longer than 24 hours', async () => {
+      await expect(
+        controller.bookRoom('MMH Séd', { durationMinutes: 24 * 60 + 1, organizer: 'Test' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects a non-integer duration', async () => {
+      await expect(
+        controller.bookRoom('MMH Séd', { durationMinutes: 12.5 as number, organizer: 'Test' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when durationMinutes is missing', async () => {
@@ -104,9 +122,41 @@ describe('CalendarController', () => {
   });
 
   describe('checkIn()', () => {
-    it('returns success true', async () => {
+    it('returns success when a meeting is running', async () => {
       const result = await controller.checkIn('MMH Séd');
       expect(result).toEqual({ success: true });
+      expect(mockCalendarService.checkIn).toHaveBeenCalledWith('MMH Séd');
+    });
+
+    it('returns 409 when nothing is running', async () => {
+      mockCalendarService.checkIn.mockResolvedValue(false);
+      await expect(controller.checkIn('MMH Séd')).rejects.toThrow(HttpException);
+    });
+  });
+
+  describe('release()', () => {
+    it('releases the current meeting', async () => {
+      const result = await controller.release('MMH Séd');
+      expect(result).toEqual({ success: true });
+      expect(mockCalendarService.releaseNow).toHaveBeenCalledWith('MMH Séd');
+    });
+
+    it('returns 409 when nothing to release', async () => {
+      mockCalendarService.releaseNow.mockResolvedValue(false);
+      await expect(controller.release('MMH Séd')).rejects.toThrow(HttpException);
+    });
+  });
+
+  describe('extend()', () => {
+    it('extends the current meeting', async () => {
+      const result = await controller.extend('MMH Séd', { minutes: 15 });
+      expect(result).toEqual({ success: true });
+      expect(mockCalendarService.extendMeeting).toHaveBeenCalledWith('MMH Séd', 15);
+    });
+
+    it('rejects an invalid extension', async () => {
+      await expect(controller.extend('MMH Séd', { minutes: 0 })).rejects.toThrow(BadRequestException);
+      await expect(controller.extend('MMH Séd', { minutes: 999 })).rejects.toThrow(BadRequestException);
     });
   });
 });

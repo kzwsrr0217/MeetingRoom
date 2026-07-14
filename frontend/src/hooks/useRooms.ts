@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ROOMS as STATIC_ROOMS, API_BASE } from '../config';
+import { ROOMS as STATIC_ROOMS, API_BASE, ROOMS_POLL_MS } from '../config';
 
 export interface Room {
   id: string;
@@ -8,7 +8,7 @@ export interface Room {
   order: number;
 }
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — propagates admin room changes to kiosks
+const POLL_INTERVAL_MS = ROOMS_POLL_MS; // propagates admin room changes to kiosks
 
 // Returns the room list — immediately the static fallback, then updated from the API.
 // Polls every 5 minutes so adds/renames/deletes from the admin page propagate automatically.

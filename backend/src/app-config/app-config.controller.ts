@@ -1,7 +1,8 @@
-import { Controller, Get, Put, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Put, Body, BadRequestException, UseGuards } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CalendarService } from '../calendar/calendar.service';
+import { AdminKeyGuard } from '../common/admin-key.guard';
 
 const CONFIG_FILE = path.join(process.cwd(), 'data', 'config.json');
 const ENV_FILE = path.join(process.cwd(), '.env');
@@ -60,6 +61,7 @@ export class AppConfigController {
     return { hasToken: true, expiresAt: decodeTokenExpiry(token) };
   }
 
+  @UseGuards(AdminKeyGuard)
   @Put('graph-token')
   updateToken(@Body() body: { token: string }) {
     if (!body?.token?.trim()) throw new BadRequestException('token is required');
@@ -84,6 +86,7 @@ export class AppConfigController {
     return readConfig().presetNames;
   }
 
+  @UseGuards(AdminKeyGuard)
   @Put('preset-names')
   setPresetNames(@Body() body: { names: string[] }): string[] {
     if (!Array.isArray(body?.names)) throw new BadRequestException('names must be an array');

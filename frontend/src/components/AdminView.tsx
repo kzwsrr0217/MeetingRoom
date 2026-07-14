@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRoomStatus } from '../hooks/useRoomStatus';
 import { useRooms, type Room } from '../hooks/useRooms';
-import { DEFAULT_PRESET_ORGANIZERS, STORAGE_KEY_HOME_ROOM, API_BASE } from '../config';
+import {
+  DEFAULT_PRESET_ORGANIZERS, STORAGE_KEY_HOME_ROOM, STORAGE_KEY_ADMIN_KEY,
+  API_BASE, ADMIN_STATUS_POLL_MS, adminHeaders, getAdminKey,
+} from '../config';
 
 interface Health { status: string; mode: 'mock' | 'graph'; timestamp: string; }
 interface TokenStatus { hasToken: boolean; expiresAt: string | null; }
@@ -23,7 +26,7 @@ const RoomStatusCard = ({ room, onEdit, onDelete }: {
   onEdit: (room: Room) => void;
   onDelete: (id: string) => void;
 }) => {
-  const { status, error } = useRoomStatus(room.name, 15000);
+  const { status, error } = useRoomStatus(room.id, ADMIN_STATUS_POLL_MS);
   const endTime = status?.currentMeetingEnd ? new Date(status.currentMeetingEnd) : null;
   const minutesLeft = endTime ? Math.max(0, Math.ceil((endTime.getTime() - Date.now()) / 60000)) : null;
 
@@ -44,7 +47,7 @@ const RoomStatusCard = ({ room, onEdit, onDelete }: {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <a
-            href={`/?room=${encodeURIComponent(room.name)}`}
+            href={`/?room=${encodeURIComponent(room.id)}`}
             target="_blank" rel="noopener noreferrer"
             className="text-xs text-blue-500 border border-blue-900 px-2 py-0.5 rounded-lg hover:border-blue-500 transition-colors"
           >↗</a>
@@ -175,6 +178,15 @@ export const AdminView = () => {
   const [newName, setNewName] = useState('');
   const [presetMsg, setPresetMsg] = useState<string | null>(null);
 
+  const [adminKeyInput, setAdminKeyInput] = useState(getAdminKey());
+  const [adminKeyMsg, setAdminKeyMsg] = useState<string | null>(null);
+
+  const saveAdminKey = () => {
+    localStorage.setItem(STORAGE_KEY_ADMIN_KEY, adminKeyInput.trim());
+    setAdminKeyMsg('Admin kulcs mentve ebben a böngészőben.');
+    setTimeout(() => setAdminKeyMsg(null), 3000);
+  };
+
   // ── Health polling ──────────────────────────────────────────────────────────
 
   const fetchHealth = useCallback(async () => {
@@ -208,7 +220,7 @@ export const AdminView = () => {
     fetchHealth();
     fetchTokenStatus();
     fetchPresetNames();
-    const id = setInterval(() => { fetchHealth(); fetchTokenStatus(); }, 15000);
+    const id = setInterval(() => { fetchHealth(); fetchTokenStatus(); }, ADMIN_STATUS_POLL_MS);
     return () => clearInterval(id);
   }, [fetchHealth, fetchTokenStatus, fetchPresetNames]);
 
@@ -220,7 +232,7 @@ export const AdminView = () => {
     try {
       const res = await fetch(`${API_BASE}/rooms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({ name: newRoomName.trim(), calendarEmail: newRoomEmail.trim() }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
@@ -240,7 +252,7 @@ export const AdminView = () => {
   const handleEditRoom = async (id: string, name: string, calendarEmail: string) => {
     const res = await fetch(`${API_BASE}/rooms/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify({ name, calendarEmail }),
     });
     const updated: Room = await res.json();
@@ -249,13 +261,13 @@ export const AdminView = () => {
 
   const handleDeleteRoom = async (id: string) => {
     if (!confirm('Biztosan törlöd ezt a tárgyalót?')) return;
-    await fetch(`${API_BASE}/rooms/${id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/rooms/${id}`, { method: 'DELETE', headers: adminHeaders() });
     setRoomList(prev => prev.filter(r => r.id !== id));
   };
 
   const handleResetRooms = async () => {
     if (!confirm('Visszaállítod az alapértelmezett tárgyalólistát?')) return;
-    const res = await fetch(`${API_BASE}/rooms/reset`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/rooms/reset`, { method: 'POST', headers: adminHeaders() });
     setRoomList(await res.json());
   };
 
@@ -267,7 +279,7 @@ export const AdminView = () => {
     try {
       const res = await fetch(`${API_BASE}/config/graph-token`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({ token: tokenInput.trim() }),
       });
       const data = await res.json();
@@ -293,7 +305,7 @@ export const AdminView = () => {
     try {
       await fetch(`${API_BASE}/config/preset-names`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({ names }),
       });
       setPresetMsg('Mentve — minden eszközön frissül.');
@@ -510,12 +522,33 @@ export const AdminView = () => {
                 {roomList.map(room => (
                   <div key={room.id} className="flex items-center justify-between">
                     <span className="text-gray-400 text-xs">{room.name}</span>
-                    <a href={`/?room=${encodeURIComponent(room.name)}`}
+                    <a href={`/?room=${encodeURIComponent(room.id)}`}
                       target="_blank" rel="noopener noreferrer"
                       className="text-xs text-blue-500 hover:text-blue-400">Megnyitás ↗</a>
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="border-t border-gray-800 pt-4 mt-4">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Admin kulcs</p>
+              <p className="text-xs text-gray-600 mb-2">
+                Csak akkor szükséges, ha a backend <code className="text-gray-500">ADMIN_API_KEY</code> be van állítva.
+                A kulcs ebben a böngészőben tárolódik, és a módosító kéréseknél <code className="text-gray-500">x-admin-key</code> fejlécként megy.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password" value={adminKeyInput} onChange={e => setAdminKeyInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveAdminKey()}
+                  placeholder="admin kulcs..."
+                  className="flex-1 bg-gray-800 text-white text-sm px-4 py-2 rounded-xl border border-gray-700 focus:border-blue-500 focus:outline-none font-mono"
+                />
+                <button onClick={saveAdminKey}
+                  className="px-4 py-2 bg-blue-700 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors">
+                  Mentés
+                </button>
+              </div>
+              {adminKeyMsg && <p className="text-xs text-green-400 mt-2">{adminKeyMsg}</p>}
             </div>
 
             <div className="border-t border-gray-800 pt-4 mt-4">

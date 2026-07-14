@@ -23,7 +23,7 @@ The screen shows a **red** status card with **"FOGLALT"** (Occupied). You can se
 - When the meeting ends, with a live countdown ("Még X perc")
 - Upcoming meetings for the next few hours in the strip above the timeline
 
-The status updates automatically every 10 seconds. A small green dot labelled **"Élő"** in the top-right corner confirms the kiosk is connected and live.
+The status updates automatically every 15 seconds. A small green dot labelled **"Élő"** in the top-right corner confirms the kiosk is connected and live.
 
 ### Upcoming Meetings Strip
 
@@ -68,14 +68,33 @@ The new event appears in the timeline and upcoming strip immediately.
 
 ---
 
-## Checking In
+## Checking In (and no-show auto-release)
 
-If you are the organiser or attendee of the current meeting:
+When a meeting is running the red card shows **"Megérkeztél?"** with a **Check-in**
+button and a countdown (**"Automatikus felszabadítás: M:SS"**).
 
-1. Tap **"Check-in"** on the red status card
-2. A confirmation tick appears — your presence is recorded
+1. Tap **"Check-in"** when you arrive
+2. The card shows **"✓ Visszaigazolva"** — your presence is confirmed
 
-> Currently check-in is logged for demonstration purposes. It does not modify the meeting in Outlook.
+If **nobody checks in** before the countdown reaches zero (default 10 minutes after
+the start), the room is automatically **released as a no-show** and becomes bookable
+again — so ghost bookings don't waste rooms.
+
+## Ending or Extending a Meeting
+
+While a meeting is running, the red card also offers:
+
+- **"Vége / Elengedés"** — free the room immediately when you finish early.
+- **"+15 perc"** — extend the current meeting by 15 minutes (if the next slot is free).
+
+> In live mode these act on the room's Outlook calendar; only bookings made from the
+> kiosk can be ended or extended this way.
+
+## Book From Your Phone
+
+The kiosk shows a **QR code** labelled **"Foglalás telefonról"**. Scan it with your
+phone camera to open this room's panel on your own device and book without touching
+the shared screen.
 
 ---
 

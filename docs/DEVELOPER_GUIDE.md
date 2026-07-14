@@ -257,14 +257,22 @@ Base URL: `http://localhost:3000/api`
 
 ### GET `/health`
 
-Returns backend status and current mode.
+Returns backend status, mode, and how it authenticates to Graph.
 
 **Response:**
 ```json
-{ "status": "ok", "mode": "mock", "timestamp": "2026-06-16T04:51:40.000Z" }
+{ "status": "ok", "mode": "mock", "auth": "none", "timestamp": "2026-06-16T04:51:40.000Z" }
 ```
 
-`mode` is either `"mock"` or `"graph"`.
+`mode` is `"mock"` or `"graph"`. `auth` is `"none"` (mock), `"msal"` (Azure app),
+`"temp-token"` (manual token), or `"unconfigured"` (graph mode with no credentials).
+
+> **Admin/mutating endpoints** (`POST/PATCH/DELETE /rooms*`, `PUT /config/*`) are
+> protected by the `AdminKeyGuard`. When `ADMIN_API_KEY` is set, send it as an
+> `x-admin-key` header; when unset the guard is fail-open (POC/local).
+>
+> **Panel action endpoints** (`book`, `checkin`, `release`, `extend`) are rate
+> limited (default 30 req / 10 s per IP → HTTP 429 when exceeded).
 
 ---
 
@@ -349,12 +357,13 @@ Saves the preset names (shared across all kiosks).
 
 Returns the current status of a room.
 
-**URL parameter:** `roomId` — room name (URL-encoded), e.g. `MMH%20S%C3%A9d`
+**URL parameter:** `roomId` — accepts either the slug **id** (`mmh-sed`, preferred)
+or the display **name** (`MMH%20S%C3%A9d`); both resolve to the same room.
 
 **Response:**
 ```json
 {
-  "roomId": "MMH Séd",
+  "roomId": "mmh-sed",
   "isOccupied": true,
   "currentMeetingTitle": "Heti review",
   "currentMeetingOrganizer": "Nagy Anna",
@@ -362,41 +371,55 @@ Returns the current status of a room.
   "nextMeetingStart": null,
   "schedule": [
     { "start": "...", "end": "...", "title": "...", "organizer": "..." }
-  ]
+  ],
+  "currentMeetingId": "2026-06-16T09:00:00.000Z",
+  "currentMeetingCheckedIn": false,
+  "checkInRequired": true,
+  "autoReleaseAt": "2026-06-16T09:10:00.000Z"
 }
 ```
 
-`schedule` contains all meetings for today (past, current, and future). The frontend filters it to show upcoming meetings in the next strip above the timeline.
+Lifecycle fields: `checkInRequired` is true while a meeting is running, unconfirmed,
+and inside the grace window; `autoReleaseAt` is when an unconfirmed meeting will be
+released as a no-show; `currentMeetingCheckedIn` flips true after check-in.
 
-**Errors:**
-- HTTP 401 — Graph token expired or invalid (live mode only)
-- HTTP 503 — Other Graph API failure
+**Errors:** HTTP 401 (token expired, live mode) · HTTP 503 (other Graph failure).
 
 ### POST `/calendar/room/:roomId/book`
 
-Creates a new booking.
+Creates a new booking. Rate limited.
 
 **Body:**
 ```json
-{
-  "durationMinutes": 30,
-  "organizer": "Kovács Péter",
-  "title": "Design review",
-  "startTime": "2026-06-16T10:00:00.000Z"
-}
+{ "durationMinutes": 30, "organizer": "Kovács Péter", "title": "Design review", "startTime": "2026-06-16T10:00:00.000Z" }
 ```
 
-`title` optional — defaults to `"Gyors foglalás (X perc)"` in mock mode or `"Kiosk booking: <organizer>"` in live mode.  
-`startTime` optional — omit for an immediate booking.
+`title`/`startTime` optional. In live mode the event is tagged with the
+`MeetingRoomKiosk` category so only kiosk-created events are ever mutated.
 
-**Response:** `true` (HTTP 201).  
-**Errors:** HTTP 400 if `durationMinutes` missing; HTTP 401 if token expired (live mode).
+**Response:** `{ "success": true }` (HTTP 201).  
+**Errors:** HTTP 400 (invalid/missing `durationMinutes`, or > 24 h) · HTTP 409 (overlaps an existing booking) · HTTP 401 (token expired).
 
 ### POST `/calendar/room/:roomId/checkin`
 
-Confirms check-in (POC stub, no Outlook write).
+Checks in to the room's currently running meeting (prevents no-show auto-release).
 
-**Response:** `{ "success": true }`
+**Response:** `{ "success": true }` · **HTTP 409** if no meeting is running.
+
+### POST `/calendar/room/:roomId/release`
+
+Ends the current meeting immediately, freeing the room. In live mode only
+kiosk-created events are deleted.
+
+**Response:** `{ "success": true }` · **HTTP 409** if nothing is releasable.
+
+### POST `/calendar/room/:roomId/extend`
+
+Extends the current meeting if the following slot is free.
+
+**Body:** `{ "minutes": 15 }` (1–120)
+
+**Response:** `{ "success": true }` · **HTTP 400** (invalid minutes) · **HTTP 409** (nothing to extend / collides with the next meeting).
 
 ---
 
@@ -409,12 +432,9 @@ cd backend
 npm test
 ```
 
-Runs all `*.spec.ts` files. Currently **71 tests** across 5 suites:
-- `mock-calendar.service.spec.ts` — 15 tests
-- `calendar.controller.spec.ts` — 9 tests
-- `rooms.service.spec.ts` — 15 tests
-- `rooms.controller.spec.ts` — 13 tests
-- `app-config.controller.spec.ts` — 19 tests
+Runs all `*.spec.ts` files. Currently **99 tests** across 7 suites, including the
+meeting lifecycle (check-in, no-show auto-release, release, extend), the
+`AdminKeyGuard`, and the `parseGraphDateTime` / interval utilities.
 
 ### Backend e2e tests
 
@@ -423,7 +443,9 @@ cd backend
 npx jest --config ./test/jest-e2e.json --forceExit
 ```
 
-**22 tests** against a real in-process NestJS app in mock mode. Covers health, room CRUD, config endpoints, booking with title, and future advance booking.
+**27 tests** against a real in-process NestJS app in mock mode. Covers health,
+room CRUD, config endpoints, booking (with conflict 409 and validation 400),
+and the full lifecycle (check-in / release / extend).
 
 ### Frontend component tests (Vitest)
 

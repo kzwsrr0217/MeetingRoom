@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { MockCalendarService } from './mock-calendar.service';
 
 describe('MockCalendarService', () => {
@@ -46,6 +47,20 @@ describe('MockCalendarService', () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
       const status = await service.getRoomStatus('MMH Séd');
       expect(status.isOccupied).toBe(false);
+      jest.useRealTimers();
+    });
+
+    it('matches ad-hoc occupancy by slug id (mmh-balaton), not just the name', async () => {
+      const status = await service.getRoomStatus('mmh-balaton');
+      expect(status.isOccupied).toBe(true);
+      expect(status.currentMeetingTitle).toBe('Vezetőségi értekezlet');
+    });
+
+    it('matches accent-stripped slug id (mmh-sed) on even hours', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T10:00:00'));
+      const status = await service.getRoomStatus('mmh-sed');
+      expect(status.isOccupied).toBe(true);
+      expect(status.currentMeetingTitle).toBe('Heti Séd-Review');
       jest.useRealTimers();
     });
 
@@ -121,6 +136,22 @@ describe('MockCalendarService', () => {
       expect(result).toBe(true);
     });
 
+    it('rejects a second overlapping booking with ConflictException', async () => {
+      const start = new Date(Date.now() + 60 * 60000).toISOString(); // +1h
+      await service.bookRoom('MMH Tihany', 60, 'Első', 'Megbeszélés', start);
+      await expect(
+        service.bookRoom('MMH Tihany', 60, 'Második', 'Másik', start),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('allows a booking in a free slot that does not overlap', async () => {
+      const first = new Date(Date.now() + 60 * 60000).toISOString();     // +1h, 30 min
+      const later = new Date(Date.now() + 3 * 60 * 60000).toISOString(); // +3h, 30 min
+      await service.bookRoom('MMH Tihany', 30, 'Első', undefined, first);
+      const result = await service.bookRoom('MMH Tihany', 30, 'Második', undefined, later);
+      expect(result).toBe(true);
+    });
+
     it('active booking appears in schedule so the timeline can render it', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
       await service.bookRoom('MMH Tihany', 60, 'Kovács Péter');
@@ -139,6 +170,68 @@ describe('MockCalendarService', () => {
       await service.bookRoom('MMH Séd', 30, 'Test');
       const statusInOther = await other.getRoomStatus('MMH Séd');
       expect(statusInOther.isOccupied).toBe(false); // other instance has no booking
+      jest.useRealTimers();
+    });
+  });
+
+  describe('meeting lifecycle — check-in / no-show / release / extend', () => {
+    it('a running booking initially requires check-in', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 30, 'Késő');
+      const status = await service.getRoomStatus('MMH Tihany');
+      expect(status.isOccupied).toBe(true);
+      expect(status.checkInRequired).toBe(true);
+      expect(status.currentMeetingCheckedIn).toBe(false);
+      expect(status.autoReleaseAt).not.toBeNull();
+      jest.useRealTimers();
+    });
+
+    it('auto-releases a no-show booking after the grace period', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 30, 'Késő');
+      jest.setSystemTime(new Date('2026-01-01T11:11:00')); // past the 10-min grace
+      const status = await service.getRoomStatus('MMH Tihany');
+      expect(status.isOccupied).toBe(false);
+      jest.useRealTimers();
+    });
+
+    it('a checked-in booking is not auto-released', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 30, 'Pontos');
+      expect(await service.checkIn('MMH Tihany')).toBe(true);
+      jest.setSystemTime(new Date('2026-01-01T11:11:00'));
+      const status = await service.getRoomStatus('MMH Tihany');
+      expect(status.isOccupied).toBe(true);
+      expect(status.currentMeetingCheckedIn).toBe(true);
+      expect(status.checkInRequired).toBe(false);
+      jest.useRealTimers();
+    });
+
+    it('checkIn returns false when no meeting is running', async () => {
+      expect(await service.checkIn('MMH Tihany')).toBe(false);
+    });
+
+    it('releaseNow frees the room immediately', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 60, 'X');
+      expect(await service.releaseNow('MMH Tihany')).toBe(true);
+      const status = await service.getRoomStatus('MMH Tihany');
+      expect(status.isOccupied).toBe(false);
+      jest.useRealTimers();
+    });
+
+    it('releaseNow returns false when nothing is running', async () => {
+      expect(await service.releaseNow('MMH Tihany')).toBe(false);
+    });
+
+    it('extendMeeting moves the end time out', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T11:00:00'));
+      await service.bookRoom('MMH Tihany', 30, 'X'); // ends 11:30
+      expect(await service.extendMeeting('MMH Tihany', 15)).toBe(true);
+      const status = await service.getRoomStatus('MMH Tihany');
+      const end = new Date(status.currentMeetingEnd!);
+      expect(end.getHours()).toBe(11);
+      expect(end.getMinutes()).toBe(45);
       jest.useRealTimers();
     });
   });

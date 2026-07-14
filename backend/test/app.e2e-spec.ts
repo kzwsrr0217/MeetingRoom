@@ -10,6 +10,7 @@ describe('API routes (e2e)', () => {
   beforeEach(async () => {
     process.env.USE_MOCK_DATA = 'true';
     delete process.env.GRAPH_TEMP_TOKEN;
+    delete process.env.ADMIN_API_KEY; // keep admin endpoints open for these tests
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -51,15 +52,26 @@ describe('API routes (e2e)', () => {
       });
   });
 
-  it('POST /api/calendar/room/:roomId/book returns true', () => {
+  it('POST /api/calendar/room/:roomId/book returns { success: true }', () => {
     return request(app.getHttpServer())
       .post('/api/calendar/room/MMH%20S%C3%A9d/book')
       .send({ durationMinutes: 30, organizer: 'Teszt Felhasználó' })
       .expect(201)
       .expect(res => {
-        // NestJS serializes boolean primitives as plain text "true"
-        expect(res.text).toBe('true');
+        expect(res.body).toEqual({ success: true });
       });
+  });
+
+  it('POST /api/calendar/room/:roomId/book returns 409 on an overlapping booking', async () => {
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/book')
+      .send({ durationMinutes: 60, organizer: 'Első' })
+      .expect(201);
+
+    return request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/book')
+      .send({ durationMinutes: 60, organizer: 'Második' })
+      .expect(409);
   });
 
   it('POST /api/calendar/room/:roomId/book stores title and reflects it in status', async () => {
@@ -103,11 +115,66 @@ describe('API routes (e2e)', () => {
       .expect(400);
   });
 
-  it('POST /api/calendar/room/:roomId/checkin returns success', () => {
+  it('POST /checkin succeeds for a running kiosk booking', async () => {
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/book')
+      .send({ durationMinutes: 30, organizer: 'Teszt' })
+      .expect(201);
+
     return request(app.getHttpServer())
-      .post('/api/calendar/room/MMH%20S%C3%A9d/checkin')
+      .post('/api/calendar/room/MMH%20Tihany/checkin')
       .expect(201)
       .expect({ success: true });
+  });
+
+  it('POST /checkin returns 409 when no meeting is running', () => {
+    return request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/checkin')
+      .expect(409);
+  });
+
+  it('POST /release frees a running kiosk booking', async () => {
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/book')
+      .send({ durationMinutes: 30, organizer: 'Teszt' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/release')
+      .expect(201)
+      .expect({ success: true });
+
+    const res = await request(app.getHttpServer())
+      .get('/api/calendar/room/MMH%20Tihany/status')
+      .expect(200);
+    expect(res.body.isOccupied).toBe(false);
+  });
+
+  it('POST /extend lengthens a running kiosk booking', async () => {
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/book')
+      .send({ durationMinutes: 30, organizer: 'Teszt' })
+      .expect(201);
+
+    const before = await request(app.getHttpServer()).get('/api/calendar/room/MMH%20Tihany/status');
+    const endBefore = new Date(before.body.currentMeetingEnd).getTime();
+
+    await request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/extend')
+      .send({ minutes: 15 })
+      .expect(201)
+      .expect({ success: true });
+
+    const after = await request(app.getHttpServer()).get('/api/calendar/room/MMH%20Tihany/status');
+    const endAfter = new Date(after.body.currentMeetingEnd).getTime();
+    expect(endAfter - endBefore).toBe(15 * 60000);
+  });
+
+  it('POST /extend rejects an invalid duration', () => {
+    return request(app.getHttpServer())
+      .post('/api/calendar/room/MMH%20Tihany/extend')
+      .send({ minutes: 0 })
+      .expect(400);
   });
 
   // ── Rooms CRUD ────────────────────────────────────────────────────────────────

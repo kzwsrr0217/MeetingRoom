@@ -1,11 +1,12 @@
 import { STORAGE_KEY_HOME_ROOM } from '../config';
-import { useRoomNames } from '../hooks/useRooms';
+import { useRooms } from '../hooks/useRooms';
 
 export const SetupScreen = () => {
-  const rooms = useRoomNames();
+  const rooms = useRooms();
 
-  const handleSelect = (room: string) => {
-    localStorage.setItem(STORAGE_KEY_HOME_ROOM, room);
+  // Store the stable room id (not the display name) so renames don't break kiosks.
+  const handleSelect = (roomId: string) => {
+    localStorage.setItem(STORAGE_KEY_HOME_ROOM, roomId);
     window.location.href = '/';
   };
 
@@ -23,11 +24,11 @@ export const SetupScreen = () => {
       <div className="grid grid-cols-2 gap-5 max-w-2xl w-full">
         {rooms.map(room => (
           <button
-            key={room}
-            onClick={() => handleSelect(room)}
+            key={room.id}
+            onClick={() => handleSelect(room.id)}
             className="p-8 bg-gray-800 border-2 border-gray-700 rounded-[2rem] text-3xl font-black text-white hover:border-blue-500 hover:bg-gray-700 active:scale-95 transition-all"
           >
-            {room}
+            {room.name}
           </button>
         ))}
       </div>

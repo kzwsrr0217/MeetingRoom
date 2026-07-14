@@ -1,0 +1,27 @@
+# Backend image for corporate TLS-inspected networks (e.g. Zscaler).
+# Identical to Dockerfile, but trusts a corporate root CA so `npm ci` can reach
+# registry.npmjs.org through the inspecting proxy.
+#
+# Drop your corporate root CA (PEM) at backend/corp-ca.pem before building, then:
+#   podman build -f backend/Dockerfile.corpca -t meetingroom-backend ./backend
+#
+# corp-ca.pem is git-ignored — it is environment-specific, not app code.
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY corp-ca.pem /etc/ssl/certs/corp-ca.pem
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/corp-ca.pem
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY corp-ca.pem /etc/ssl/certs/corp-ca.pem
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/corp-ca.pem
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
+RUN mkdir -p /app/data
+EXPOSE 3000
+CMD ["node", "dist/main"]
