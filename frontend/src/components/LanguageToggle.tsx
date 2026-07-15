@@ -1,7 +1,7 @@
 import { useI18n } from '../i18n/I18nContext';
 import type { Lang } from '../i18n/translations';
 
-const LANGS: Lang[] = ['hu', 'en'];
+const LANGS: Lang[] = ['hu', 'en', 'de'];
 
 export const LanguageToggle = ({ className = '' }: { className?: string }) => {
   const { lang, setLang } = useI18n();

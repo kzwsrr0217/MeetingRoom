@@ -19,4 +19,6 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.podman.conf /etc/nginx/templates/default.conf.template
 COPY set-resolver.envsh /docker-entrypoint.d/15-resolver.envsh
+# Strip any CR so the sourced shell script works regardless of host line endings.
+RUN sed -i 's/\r$//' /docker-entrypoint.d/15-resolver.envsh
 EXPOSE 80

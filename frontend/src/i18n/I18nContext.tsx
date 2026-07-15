@@ -19,7 +19,7 @@ const I18nCtx = createContext<I18nValue>(defaultValue);
 export const I18nProvider = ({ children }: { children: ReactNode }) => {
   const [lang, setLangState] = useState<Lang>(() => {
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY_LANG) : null;
-    return saved === 'en' || saved === 'hu' ? saved : 'hu';
+    return saved === 'en' || saved === 'hu' || saved === 'de' ? saved : 'hu';
   });
 
   const setLang = (l: Lang) => {
