@@ -1,0 +1,7 @@
+#!/bin/sh
+# Sourced by the nginx image entrypoint (*.envsh) before template substitution.
+# Picks the container's DNS server (podman/docker embedded DNS) so nginx can
+# re-resolve the "backend" service name at runtime.
+NGINX_RESOLVER="$(awk '/^nameserver/ { print $2; exit }' /etc/resolv.conf)"
+[ -z "$NGINX_RESOLVER" ] && NGINX_RESOLVER="127.0.0.11"
+export NGINX_RESOLVER

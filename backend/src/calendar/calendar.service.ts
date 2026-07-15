@@ -23,7 +23,7 @@ export abstract class CalendarService {
   protected readonly graceMs = Number(process.env.CHECKIN_GRACE_MIN ?? 10) * 60000;
 
   abstract getRoomStatus(roomId: string): Promise<RoomStatus>;
-  abstract bookRoom(roomId: string, durationMinutes: number, organizer: string, title?: string, startTime?: string): Promise<boolean>;
+  abstract bookRoom(roomId: string, durationMinutes: number, organizer: string, title?: string, startTime?: string, isPrivate?: boolean): Promise<boolean>;
 
   /** Check in to the room's current meeting. Returns false if nothing is running. */
   abstract checkIn(roomId: string): Promise<boolean>;
@@ -34,6 +34,14 @@ export abstract class CalendarService {
 
   // No-op in mock mode; GraphCalendarService overrides to re-init the Graph client
   updateToken(_token: string): void {}
+
+  // ── Diagnostics for /health (readiness) — updated without extra Graph calls ──
+  protected lastGraphOkAt: string | null = null;
+  protected lastGraphErrorAt: string | null = null;
+
+  getDiagnostics(): { lastOkAt: string | null; lastErrorAt: string | null } {
+    return { lastOkAt: this.lastGraphOkAt, lastErrorAt: this.lastGraphErrorAt };
+  }
 
   // ── Shared lifecycle state helpers ──────────────────────────────────────────
 

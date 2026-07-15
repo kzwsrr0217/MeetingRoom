@@ -8,7 +8,10 @@ interface ActiveBooking {
   end: Date;
   title: string;
   organizer: string;
+  private: boolean;
 }
+
+const PRIVATE_TITLE = 'Privát megbeszélés';
 
 type ScheduleEntry = { start: string; end: string; title: string; organizer: string };
 
@@ -85,17 +88,19 @@ export class MockCalendarService extends CalendarService {
 
       if (flags) {
         const effectiveEnd = new Date(flags.endMs).toISOString();
+        const shownTitle = current.private ? PRIVATE_TITLE : current.title;
+        const shownOrganizer = current.private ? null : current.organizer;
         const simulated = this.getSimulatedSchedule(roomId);
         const merged = [
-          { start: startISO, end: effectiveEnd, title: current.title, organizer: current.organizer },
+          { start: startISO, end: effectiveEnd, title: shownTitle, organizer: shownOrganizer ?? '', },
           ...simulated.filter(e => e.start !== startISO),
         ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
         return {
           roomId,
           isOccupied: true,
-          currentMeetingTitle: current.title,
-          currentMeetingOrganizer: current.organizer,
+          currentMeetingTitle: shownTitle,
+          currentMeetingOrganizer: shownOrganizer,
           currentMeetingEnd: effectiveEnd,
           nextMeetingStart: null,
           schedule: merged,
@@ -103,6 +108,7 @@ export class MockCalendarService extends CalendarService {
           currentMeetingCheckedIn: flags.checkedIn,
           checkInRequired: flags.checkInRequired,
           autoReleaseAt: flags.autoReleaseAt,
+          currentMeetingPrivate: current.private,
         };
       }
       // Released / no-show → drop the booking and fall through to "free"
@@ -160,6 +166,7 @@ export class MockCalendarService extends CalendarService {
     organizer: string,
     title?: string,
     startTime?: string,
+    isPrivate?: boolean,
   ): Promise<boolean> {
     const start = startTime ? new Date(startTime) : new Date();
     const end = new Date(start.getTime() + durationMinutes * 60000);
@@ -171,7 +178,7 @@ export class MockCalendarService extends CalendarService {
       throw new ConflictException('A terem a kért időszakban már foglalt.');
     }
 
-    this.activeBookings.set(roomId, { start, end, title: resolvedTitle, organizer });
+    this.activeBookings.set(roomId, { start, end, title: resolvedTitle, organizer, private: !!isPrivate });
 
     console.log(
       `[Mock] Foglalás rögzítve: ${roomId} | ${resolvedTitle} | Kezdés: ${start.toLocaleTimeString('hu-HU')} | Vége: ${end.toLocaleTimeString('hu-HU')} | Szervező: ${organizer}`,

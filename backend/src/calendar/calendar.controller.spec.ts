@@ -21,6 +21,7 @@ const mockCalendarService = {
   checkIn: jest.fn().mockResolvedValue(true),
   releaseNow: jest.fn().mockResolvedValue(true),
   extendMeeting: jest.fn().mockResolvedValue(true),
+  getDiagnostics: jest.fn().mockReturnValue({ lastOkAt: null, lastErrorAt: null }),
 };
 
 describe('CalendarController', () => {
@@ -85,7 +86,7 @@ describe('CalendarController', () => {
       });
       expect(result).toEqual({ success: true });
       expect(mockCalendarService.bookRoom).toHaveBeenCalledWith(
-        'MMH Séd', 30, 'Kovács Péter', undefined, undefined,
+        'MMH Séd', 30, 'Kovács Péter', undefined, undefined, false,
       );
     });
 
@@ -110,14 +111,14 @@ describe('CalendarController', () => {
     it('falls back to Névtelen foglaló when organizer is empty', async () => {
       await controller.bookRoom('MMH Séd', { durationMinutes: 30, organizer: '' });
       expect(mockCalendarService.bookRoom).toHaveBeenCalledWith(
-        'MMH Séd', 30, 'Névtelen foglaló', undefined, undefined,
+        'MMH Séd', 30, 'Névtelen foglaló', undefined, undefined, false,
       );
     });
 
     it('passes title and startTime through to service', async () => {
       const startTime = '2026-01-01T14:00:00.000Z';
       await controller.bookRoom('MMH Séd', { durationMinutes: 60, organizer: 'Test', title: 'Design review', startTime });
-      expect(mockCalendarService.bookRoom).toHaveBeenCalledWith('MMH Séd', 60, 'Test', 'Design review', startTime);
+      expect(mockCalendarService.bookRoom).toHaveBeenCalledWith('MMH Séd', 60, 'Test', 'Design review', startTime, false);
     });
   });
 

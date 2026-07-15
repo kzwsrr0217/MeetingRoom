@@ -9,12 +9,16 @@ import { MeetingDetails } from './MeetingDetails';
 import { Timeline } from './Timeline';
 import { BookingModal } from './BookingModal';
 import { BookFromPhone } from './BookFromPhone';
+import { ReportIssueModal } from './ReportIssueModal';
+import { LanguageToggle } from './LanguageToggle';
+import { useI18n } from '../i18n/I18nContext';
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
 
 // Horizontal strip showing upcoming meetings — always visible above the timeline
 const UpcomingStrip = ({ schedule }: { schedule: RoomStatus['schedule'] }) => {
+  const { t } = useI18n();
   const now = Date.now();
   const upcoming = schedule
     .filter(e => new Date(e.start).getTime() > now)
@@ -27,7 +31,7 @@ const UpcomingStrip = ({ schedule }: { schedule: RoomStatus['schedule'] }) => {
   return (
     <div className="shrink-0 px-12 pb-3 flex items-center gap-3 overflow-x-auto scrollbar-none">
       <span className="text-gray-600 text-xs font-bold uppercase tracking-widest shrink-0">
-        Következő:
+        {t('room.upcoming')}
       </span>
       {upcoming.map((e, i) => (
         <div
@@ -50,7 +54,7 @@ interface Props {
   roomName: string;   // display name
   roomId: string;     // stable identifier used in URLs / status keys
   homeRoom: string;
-  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
+  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date, isPrivate?: boolean) => Promise<string | null>;
   onCheckIn: () => Promise<string | null>;
   onRelease: () => Promise<string | null>;
   onExtend: (minutes: number) => Promise<string | null>;
@@ -66,6 +70,7 @@ const OtherRoomCard = ({
   homeRoom: string;
   onClick: () => void;
 }) => {
+  const { t } = useI18n();
   const { status } = useRoomStatus(room.id, 15000);
   const isHome = room.id === homeRoom || room.name === homeRoom;
 
@@ -101,7 +106,7 @@ const OtherRoomCard = ({
               : 'bg-green-600/80 text-white'
           }`}
         >
-          {occupied === null ? '...' : occupied ? 'Foglalt' : 'Szabad'}
+          {occupied === null ? '...' : occupied ? t('common.occupied') : t('common.free')}
         </div>
       </div>
 
@@ -113,8 +118,8 @@ const OtherRoomCard = ({
           )}
           {endTime && minutesLeft !== null && (
             <p className="text-orange-400">
-              Vége: {endTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
-              {' · még '}{minutesLeft} perc
+              {t('room.ends')} {endTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+              {' · '}{t('room.minutes_left', { n: minutesLeft })}
             </p>
           )}
         </div>
@@ -123,7 +128,7 @@ const OtherRoomCard = ({
       {/* Next meeting when free */}
       {occupied === false && status?.nextMeetingStart && (
         <p className="text-sm text-gray-500">
-          Köv.:{' '}
+          {t('room.next_short')}{' '}
           {new Date(status.nextMeetingStart).toLocaleTimeString('hu-HU', {
             hour: '2-digit',
             minute: '2-digit',
@@ -135,8 +140,10 @@ const OtherRoomCard = ({
 };
 
 export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, onCheckIn, onRelease, onExtend }: Props) => {
+  const { t } = useI18n();
   const [showOtherRooms, setShowOtherRooms] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showIssueModal, setShowIssueModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -195,21 +202,32 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
         {/* Live pulse dot */}
         <div className="flex items-center gap-2 px-4 py-2 bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-700">
           <span className={`w-2.5 h-2.5 rounded-full ${status.isOccupied ? 'bg-red-400' : 'bg-green-400'} animate-pulse`} />
-          <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Élő</span>
+          <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">{t('common.live')}</span>
         </div>
+
+        <LanguageToggle />
 
         {/* Other rooms button */}
         <button
           onClick={() => setShowOtherRooms(true)}
           className="px-6 py-3 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-gray-200 rounded-2xl font-bold hover:bg-gray-700 shadow-xl active:scale-95 transition-transform cursor-pointer"
         >
-          Tárgyalók Állapota
+          {t('room.rooms_status')}
+        </button>
+
+        {/* Report issue button */}
+        <button
+          onClick={() => setShowIssueModal(true)}
+          title={t('issue.title')}
+          className="px-4 py-3 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-amber-400 rounded-2xl font-bold hover:bg-gray-700 hover:border-amber-500 shadow-xl active:scale-95 transition-all cursor-pointer"
+        >
+          ⚠️ {t('room.issue')}
         </button>
 
         {/* Fullscreen button */}
         <button
           onClick={toggleFullscreen}
-          title={isFullscreen ? 'Kilépés teljes képernyőből' : 'Teljes képernyő'}
+          title={isFullscreen ? t('room.exit_fullscreen') : t('room.fullscreen')}
           className="p-3 bg-gray-800/80 backdrop-blur-md border border-gray-700 text-gray-400 rounded-2xl hover:bg-gray-700 hover:text-white active:scale-95 transition-all cursor-pointer"
         >
           {isFullscreen ? (
@@ -231,7 +249,7 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
         <div className="flex flex-col justify-start max-w-4xl z-10">
           <Header />
           <div className="mt-12 mb-auto">
-            <span className="text-blue-500 font-black uppercase tracking-[0.3em] text-sm">Helyszín</span>
+            <span className="text-blue-500 font-black uppercase tracking-[0.3em] text-sm">{t('room.location')}</span>
             <h2 className="text-7xl font-black text-white tracking-tighter uppercase leading-none">{roomName}</h2>
           </div>
           <MeetingDetails status={status} />
@@ -262,7 +280,17 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
       <BookingModal
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
-        onBook={onBookRoom}
+        onBook={(durationMinutes, organizer, title, isPrivate) =>
+          onBookRoom(durationMinutes, organizer, title, undefined, isPrivate)
+        }
+        onToast={showToast}
+      />
+
+      {/* Report issue modal */}
+      <ReportIssueModal
+        isOpen={showIssueModal}
+        onClose={() => setShowIssueModal(false)}
+        roomId={roomId}
         onToast={showToast}
       />
 
@@ -277,11 +305,11 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
           <div className={`text-[12rem] font-black uppercase leading-none mb-6 transition-colors ${
             status.isOccupied ? 'text-red-600/30' : 'text-green-600/30'
           }`}>
-            {status.isOccupied ? 'Foglalt' : 'Szabad'}
+            {status.isOccupied ? t('common.occupied') : t('common.free')}
           </div>
           <div className="text-3xl font-bold text-white/15 mb-20 uppercase tracking-widest">{roomName}</div>
           <p className="text-gray-700 text-xs uppercase tracking-[0.3em] animate-pulse">
-            Érintse meg a képernyőt
+            {t('room.touch_screen')}
           </p>
         </div>
       )}
@@ -294,7 +322,7 @@ export const RoomDisplay = ({ status, roomName, roomId, homeRoom, onBookRoom, on
         >
           <div className="max-w-6xl mx-auto w-full" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-12">
-              <h2 className="text-6xl font-black text-white uppercase">MMH Tárgyalók</h2>
+              <h2 className="text-6xl font-black text-white uppercase">{t('room.rooms_title')}</h2>
               <button
                 onClick={() => setShowOtherRooms(false)}
                 className="text-7xl text-gray-600 hover:text-white cursor-pointer"

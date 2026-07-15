@@ -1,5 +1,7 @@
 # MeetingRoom
 
+[![CI](https://github.com/kzwsrr0217/MeetingRoom/actions/workflows/ci.yml/badge.svg)](https://github.com/kzwsrr0217/MeetingRoom/actions/workflows/ci.yml)
+
 A tablet/kiosk application for displaying real-time meeting room availability and enabling instant bookings via Microsoft Outlook.
 
 ## Quick Start (Docker Desktop)

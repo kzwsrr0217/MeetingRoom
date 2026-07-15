@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { RoomStatus } from '../hooks/useRoomStatus';
 import { BookingModal } from './BookingModal';
+import { useI18n } from '../i18n/I18nContext';
 
 interface CalendarEvent {
   start: Date;
@@ -11,11 +12,12 @@ interface CalendarEvent {
 
 interface Props {
   currentStatus: RoomStatus;
-  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date) => Promise<string | null>;
+  onBookRoom: (durationMinutes: number, organizer: string, title: string, startTime?: Date, isPrivate?: boolean) => Promise<string | null>;
   onToast: (msg: string, type: 'success' | 'error') => void;
 }
 
 export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
+  const { t } = useI18n();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [bookingSlot, setBookingSlot] = useState<Date | null>(null);
 
@@ -70,7 +72,7 @@ export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
   return (
     <div className="shrink-0 w-full pt-4 border-t border-gray-800">
       <div className="flex justify-between items-end mb-3 px-12">
-        <h3 className="text-xl text-gray-500 uppercase tracking-widest font-medium">Napi Beosztás</h3>
+        <h3 className="text-xl text-gray-500 uppercase tracking-widest font-medium">{t('timeline.daily')}</h3>
       </div>
 
       <div className="w-full flex h-24 bg-gray-950 rounded-xl overflow-hidden border border-gray-800 shadow-2xl">
@@ -96,7 +98,7 @@ export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
               </span>
               {isNow && (
                 <span className="absolute bottom-2 text-[8px] font-black uppercase text-yellow-400 animate-pulse">
-                  Most
+                  {t('timeline.now')}
                 </span>
               )}
             </button>
@@ -116,13 +118,13 @@ export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
           >
             <h2 className="text-5xl font-bold text-white mb-8 leading-tight">{selectedEvent.title}</h2>
             <p className="text-2xl text-gray-400 mb-10">
-              Szervező: <span className="text-white">{selectedEvent.organizer}</span>
+              {t('common.organizer')}: <span className="text-white">{selectedEvent.organizer}</span>
             </p>
             <button
               onClick={() => setSelectedEvent(null)}
               className="w-full py-6 bg-white text-black font-black uppercase tracking-tighter rounded-2xl hover:bg-gray-200 transition-colors"
             >
-              Bezárás
+              {t('common.close')}
             </button>
           </div>
         </div>
@@ -132,8 +134,8 @@ export const Timeline = ({ currentStatus, onBookRoom, onToast }: Props) => {
       <BookingModal
         isOpen={bookingSlot !== null}
         onClose={() => setBookingSlot(null)}
-        onBook={(durationMinutes, organizer, title) =>
-          onBookRoom(durationMinutes, organizer, title, bookingSlot ?? undefined)
+        onBook={(durationMinutes, organizer, title, isPrivate) =>
+          onBookRoom(durationMinutes, organizer, title, bookingSlot ?? undefined, isPrivate)
         }
         onToast={onToast}
         startTime={bookingSlot ?? undefined}
