@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_BASE, STATUS_POLL_MS } from '../config';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface RoomStatus {
   roomId: string;
@@ -13,9 +14,11 @@ export interface RoomStatus {
   currentMeetingCheckedIn?: boolean;
   checkInRequired?: boolean;
   autoReleaseAt?: string | null;
+  currentMeetingPrivate?: boolean;
 }
 
 export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS) => {
+  const { t } = useI18n();
   const [status, setStatus] = useState<RoomStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,19 +27,19 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS
       const response = await fetch(`${API_BASE}/calendar/room/${encodeURIComponent(roomId)}/status`);
 
       if (response.status === 401) {
-        setError('A Microsoft Graph token lejárt. Kérje az adminisztrátor frissítse az /admin oldalon.');
+        setError(t('err.token'));
         return;
       }
-      if (!response.ok) throw new Error('Hálózati hiba a letöltésnél');
+      if (!response.ok) throw new Error('Network error');
 
       const data: RoomStatus = await response.json();
       setStatus(data);
       setError(null);
     } catch (err) {
-      setError('Nem sikerült kapcsolódni a szerverhez.');
-      console.error('Lekérdezési hiba:', err);
+      setError(t('err.network'));
+      console.error('Fetch error:', err);
     }
-  }, [roomId]);
+  }, [roomId, t]);
 
   useEffect(() => {
     fetchStatus();
@@ -69,17 +72,16 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS
       );
 
       if (!response.ok) {
-        if (response.status === 401)
-          return 'A Graph token lejárt — kérje az adminisztrátor frissítse az /admin oldalon.';
+        if (response.status === 401) return t('err.book_token');
         const body = await response.json().catch(() => ({}));
-        return body.message ?? 'A foglalás nem sikerült.';
+        return body.message ?? t('err.book_generic');
       }
 
       await fetchStatus();
       return null; // success
     } catch (err) {
-      console.error('API hiba a foglalásnál:', err);
-      return 'Nem sikerült kapcsolódni a szerverhez.';
+      console.error('Booking API error:', err);
+      return t('err.network');
     }
   };
 
@@ -94,13 +96,13 @@ export const useRoomStatus = (roomId: string, refreshIntervalMs = STATUS_POLL_MS
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        return data.message ?? 'A művelet nem sikerült.';
+        return data.message ?? t('err.action_generic');
       }
       await fetchStatus();
       return null;
     } catch (err) {
-      console.error(`API hiba (${path}):`, err);
-      return 'Nem sikerült kapcsolódni a szerverhez.';
+      console.error(`Action API error (${path}):`, err);
+      return t('err.network');
     }
   };
 

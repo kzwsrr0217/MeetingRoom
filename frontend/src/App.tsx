@@ -6,6 +6,7 @@ import { RoomDisplay } from './components/RoomDisplay';
 import { SetupScreen } from './components/SetupScreen';
 import { AdminView } from './components/AdminView';
 import { useRooms } from './hooks/useRooms';
+import { useI18n } from './i18n/I18nContext';
 import { STORAGE_KEY_HOME_ROOM } from './config';
 
 // ── Route: /admin ────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ function App() {
 // ── Kiosk app (all hooks live here) ─────────────────────────────────────────
 
 function KioskApp({ homeRoom }: { homeRoom: string }) {
+  const { t } = useI18n();
   const urlParams = new URLSearchParams(window.location.search);
   const roomFromUrl = urlParams.get('room');
   // currentRoom / homeRoom are stable ids (older kiosks may hold a name — the
@@ -91,18 +93,18 @@ function KioskApp({ homeRoom }: { homeRoom: string }) {
           <div className="flex items-center gap-4">
             <span className="text-2xl">⚠️</span>
             <p className="font-bold uppercase tracking-tight">
-              Most a <span className="underline">{displayName}</span> állapotát látod
+              {t('app.viewing_other', { room: displayName })}
             </p>
           </div>
           <div className="flex items-center gap-6">
             <span className="text-sm text-blue-200">
-              Visszatérés <span className="font-black text-white">{secondsLeft}s</span> múlva
+              {t('app.returning_in', { s: secondsLeft })}
             </span>
             <button
               onClick={() => (window.location.search = `?room=${encodeURIComponent(homeRoom)}`)}
               className="bg-white text-blue-600 px-6 py-2 rounded-xl font-black uppercase text-sm hover:bg-blue-50 transition-colors"
             >
-              Vissza
+              {t('common.back')}
             </button>
           </div>
         </div>
@@ -124,6 +126,7 @@ function KioskApp({ homeRoom }: { homeRoom: string }) {
 // ── Error screen with auto-retry ─────────────────────────────────────────────
 
 function ErrorScreen({ error, onRetry }: { error: string; onRetry: () => void }) {
+  const { t } = useI18n();
   const [countdown, setCountdown] = useState(30);
 
   useEffect(() => {
@@ -142,7 +145,7 @@ function ErrorScreen({ error, onRetry }: { error: string; onRetry: () => void })
       onClick={() => { onRetry(); setCountdown(30); }}
     >
       <div className="bg-red-950/30 border border-red-700 p-12 rounded-[3rem] max-w-xl">
-        <h1 className="text-red-500 text-3xl font-black uppercase mb-4">Kapcsolódási hiba</h1>
+        <h1 className="text-red-500 text-3xl font-black uppercase mb-4">{t('app.error_title')}</h1>
         <p className="text-white/60 mb-8">{error}</p>
         <div className="w-full bg-gray-800 rounded-full h-1.5 mb-4">
           <div
@@ -151,9 +154,9 @@ function ErrorScreen({ error, onRetry }: { error: string; onRetry: () => void })
           />
         </div>
         <p className="text-white/40 text-sm">
-          Újrakapcsolódás <span className="text-white/60 font-bold">{countdown}</span> másodperc múlva
+          {t('app.reconnect_in', { n: countdown })}
         </p>
-        <p className="text-white/25 text-xs mt-2">Érintse meg a képernyőt az azonnali újrakapcsolódáshoz</p>
+        <p className="text-white/25 text-xs mt-2">{t('app.touch_reconnect')}</p>
       </div>
     </div>
   );
@@ -162,10 +165,11 @@ function ErrorScreen({ error, onRetry }: { error: string; onRetry: () => void })
 // ── Loading screen ────────────────────────────────────────────────────────────
 
 function LoadingScreen() {
+  const { t } = useI18n();
   return (
     <div className="h-screen w-screen bg-gray-950 flex flex-col items-center justify-center gap-6">
       <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-white/60 font-bold tracking-widest uppercase text-sm">Szinkronizálás...</p>
+      <p className="text-white/60 font-bold tracking-widest uppercase text-sm">{t('app.syncing')}</p>
     </div>
   );
 }

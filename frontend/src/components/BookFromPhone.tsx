@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { useI18n } from '../i18n/I18nContext';
 
 /**
  * A small QR that opens this room's panel on a phone, so a passer-by can book
  * without touching the shared screen. The panel UI is usable on mobile.
  */
 export const BookFromPhone = ({ roomId }: { roomId: string }) => {
+  const { t } = useI18n();
   const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {
@@ -25,10 +27,8 @@ export const BookFromPhone = ({ roomId }: { roomId: string }) => {
         className="w-24 h-24 rounded-2xl bg-white p-1.5 shadow-lg"
       />
       <div className="text-left">
-        <p className="text-white/80 font-black uppercase tracking-wide text-sm">Foglalás telefonról</p>
-        <p className="text-white/40 text-xs mt-0.5 max-w-40">
-          Olvassa be a kódot, és foglaljon a saját eszközéről.
-        </p>
+        <p className="text-white/80 font-black uppercase tracking-wide text-sm">{t('phone.title')}</p>
+        <p className="text-white/40 text-xs mt-0.5 max-w-40">{t('phone.desc')}</p>
       </div>
     </div>
   );

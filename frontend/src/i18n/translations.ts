@@ -1,0 +1,222 @@
+export type Lang = 'hu' | 'en';
+
+// Flat dot-keyed dictionary. {placeholders} are filled by t(key, params).
+type Dict = Record<string, string>;
+
+const hu: Dict = {
+  // common
+  'common.free': 'Szabad',
+  'common.occupied': 'Foglalt',
+  'common.back': 'Vissza',
+  'common.cancel': 'Mégse',
+  'common.close': 'Bezárás',
+  'common.organizer': 'Szervező',
+  'common.live': 'Élő',
+
+  // setup
+  'setup.badge': 'Első beállítás',
+  'setup.title': 'Melyik tárgyaló ez a kioszk?',
+  'setup.subtitle': 'Válassza ki a kioszk fizikai helyszínét. Ez lesz az alapértelmezett nézet.',
+
+  // app / screens
+  'app.viewing_other': 'Most a {room} állapotát látod',
+  'app.returning_in': 'Visszatérés {s}s múlva',
+  'app.error_title': 'Kapcsolódási hiba',
+  'app.reconnect_in': 'Újrakapcsolódás {n} másodperc múlva',
+  'app.touch_reconnect': 'Érintse meg a képernyőt az azonnali újrakapcsolódáshoz',
+  'app.syncing': 'Szinkronizálás...',
+
+  // room display
+  'room.rooms_status': 'Tárgyalók Állapota',
+  'room.issue': 'Hiba',
+  'room.location': 'Helyszín',
+  'room.upcoming': 'Következő:',
+  'room.rooms_title': 'MMH Tárgyalók',
+  'room.ends': 'Vége:',
+  'room.minutes_left': 'még {n} perc',
+  'room.next_short': 'Köv.:',
+  'room.fullscreen': 'Teljes képernyő',
+  'room.exit_fullscreen': 'Kilépés teljes képernyőből',
+  'room.touch_screen': 'Érintse meg a képernyőt',
+  'room.loading': 'Betöltés...',
+  'room.connection_error': 'Kapcsolódási hiba',
+
+  // status card
+  'status.arrived': 'Megérkeztél?',
+  'status.checkin': 'Check-in',
+  'status.auto_release': 'Automatikus felszabadítás:',
+  'status.confirmed': 'Visszaigazolva',
+  'status.end': 'Vége',
+  'status.extend15': '+15 perc',
+  'status.extend30': '+30 perc',
+  'status.book_now': 'Azonnali foglalás',
+  'status.toast_checkin': 'Sikeres check-in!',
+  'status.toast_released': 'Terem felszabadítva.',
+  'status.toast_ext15': '+15 perc hozzáadva.',
+  'status.toast_ext30': '+30 perc hozzáadva.',
+
+  // meeting details
+  'meeting.current': 'Jelenlegi Esemény',
+  'meeting.next': 'Következő Esemény',
+  'meeting.private': 'Privát megbeszélés',
+  'meeting.ends': 'Vége:',
+  'meeting.minutes_left': 'Még {n} perc',
+  'meeting.starts_at': '{time}-tól kezdődik',
+  'meeting.no_more': 'A mai napra nincs több foglalás.',
+
+  // booking modal
+  'booking.advance': 'Előrefoglalás',
+  'booking.book_room': 'Terem foglalása',
+  'booking.start': 'Kezdés: {time}',
+  'booking.title_label': 'Megbeszélés neve (opcionális)',
+  'booking.title_ph': 'pl. Design review, Sprint planning...',
+  'booking.duration': 'Időtartam',
+  'booking.minutes': '{n} perc',
+  'booking.who': 'Ki foglal?',
+  'booking.other_name': 'Más név...',
+  'booking.full_name_ph': 'Teljes neve...',
+  'booking.private_label': 'Privát megbeszélés',
+  'booking.private_desc': 'A tárgy és a szervező nem jelenik meg a kijelzőn.',
+  'booking.confirm': 'Megerősítés',
+  'booking.booking': 'Foglalás...',
+  'booking.toast_saving': 'Foglalás rögzítése...',
+  'booking.toast_saved': 'Foglalás rögzítve! Vége: {time}',
+
+  // timeline
+  'timeline.daily': 'Napi Beosztás',
+  'timeline.now': 'Most',
+
+  // book from phone
+  'phone.title': 'Foglalás telefonról',
+  'phone.desc': 'Olvassa be a kódot, és foglaljon a saját eszközéről.',
+
+  // report issue
+  'issue.title': 'Hiba bejelentése',
+  'issue.question': 'Mi a probléma a teremben?',
+  'issue.type_av': 'Projektor / AV',
+  'issue.type_climate': 'Fűtés / Klíma',
+  'issue.type_cleanliness': 'Tisztaság',
+  'issue.type_furniture': 'Bútor',
+  'issue.type_other': 'Egyéb',
+  'issue.note_ph': 'Rövid leírás (opcionális)…',
+  'issue.submit': 'Bejelentés',
+  'issue.sending': 'Küldés…',
+  'issue.toast_thanks': 'Köszönjük! A hibát rögzítettük.',
+  'issue.toast_fail': 'A bejelentés nem sikerült.',
+
+  // hook errors
+  'err.token': 'A Microsoft Graph token lejárt. Kérje az adminisztrátor frissítse az /admin oldalon.',
+  'err.network': 'Nem sikerült kapcsolódni a szerverhez.',
+  'err.book_token': 'A Graph token lejárt — kérje az adminisztrátor frissítse az /admin oldalon.',
+  'err.book_generic': 'A foglalás nem sikerült.',
+  'err.action_generic': 'A művelet nem sikerült.',
+};
+
+const en: Dict = {
+  'common.free': 'Free',
+  'common.occupied': 'Occupied',
+  'common.back': 'Back',
+  'common.cancel': 'Cancel',
+  'common.close': 'Close',
+  'common.organizer': 'Organiser',
+  'common.live': 'Live',
+
+  'setup.badge': 'First-time setup',
+  'setup.title': 'Which meeting room is this kiosk?',
+  'setup.subtitle': 'Choose the physical location of this kiosk. This becomes its default view.',
+
+  'app.viewing_other': 'You are viewing {room}',
+  'app.returning_in': 'Returning in {s}s',
+  'app.error_title': 'Connection error',
+  'app.reconnect_in': 'Reconnecting in {n} seconds',
+  'app.touch_reconnect': 'Touch the screen to reconnect now',
+  'app.syncing': 'Synchronising…',
+
+  'room.rooms_status': 'Room status',
+  'room.issue': 'Issue',
+  'room.location': 'Location',
+  'room.upcoming': 'Upcoming:',
+  'room.rooms_title': 'MMH Meeting rooms',
+  'room.ends': 'Ends:',
+  'room.minutes_left': '{n} min left',
+  'room.next_short': 'Next:',
+  'room.fullscreen': 'Fullscreen',
+  'room.exit_fullscreen': 'Exit fullscreen',
+  'room.touch_screen': 'Touch the screen',
+  'room.loading': 'Loading…',
+  'room.connection_error': 'Connection error',
+
+  'status.arrived': 'Have you arrived?',
+  'status.checkin': 'Check in',
+  'status.auto_release': 'Auto-release in:',
+  'status.confirmed': 'Checked in',
+  'status.end': 'End',
+  'status.extend15': '+15 min',
+  'status.extend30': '+30 min',
+  'status.book_now': 'Book now',
+  'status.toast_checkin': 'Checked in.',
+  'status.toast_released': 'Room released.',
+  'status.toast_ext15': '+15 minutes added.',
+  'status.toast_ext30': '+30 minutes added.',
+
+  'meeting.current': 'Current meeting',
+  'meeting.next': 'Next meeting',
+  'meeting.private': 'Private meeting',
+  'meeting.ends': 'Ends:',
+  'meeting.minutes_left': '{n} min left',
+  'meeting.starts_at': 'starts at {time}',
+  'meeting.no_more': 'No more bookings today.',
+
+  'booking.advance': 'Advance booking',
+  'booking.book_room': 'Book this room',
+  'booking.start': 'Start: {time}',
+  'booking.title_label': 'Meeting name (optional)',
+  'booking.title_ph': 'e.g. Design review, Sprint planning…',
+  'booking.duration': 'Duration',
+  'booking.minutes': '{n} min',
+  'booking.who': 'Who is booking?',
+  'booking.other_name': 'Other name…',
+  'booking.full_name_ph': 'Full name…',
+  'booking.private_label': 'Private meeting',
+  'booking.private_desc': 'The subject and organiser are hidden on the display.',
+  'booking.confirm': 'Confirm',
+  'booking.booking': 'Booking…',
+  'booking.toast_saving': 'Saving booking…',
+  'booking.toast_saved': 'Booked! Ends: {time}',
+
+  'timeline.daily': 'Daily schedule',
+  'timeline.now': 'Now',
+
+  'phone.title': 'Book from your phone',
+  'phone.desc': 'Scan the code and book from your own device.',
+
+  'issue.title': 'Report an issue',
+  'issue.question': 'What is wrong in the room?',
+  'issue.type_av': 'Projector / AV',
+  'issue.type_climate': 'Heating / AC',
+  'issue.type_cleanliness': 'Cleanliness',
+  'issue.type_furniture': 'Furniture',
+  'issue.type_other': 'Other',
+  'issue.note_ph': 'Short description (optional)…',
+  'issue.submit': 'Submit',
+  'issue.sending': 'Sending…',
+  'issue.toast_thanks': 'Thank you! The issue has been logged.',
+  'issue.toast_fail': 'Could not submit the report.',
+
+  'err.token': 'The Microsoft Graph token has expired. Ask the admin to refresh it on the /admin page.',
+  'err.network': 'Could not connect to the server.',
+  'err.book_token': 'The Graph token has expired — ask the admin to refresh it on the /admin page.',
+  'err.book_generic': 'The booking failed.',
+  'err.action_generic': 'The action failed.',
+};
+
+export const translations: Record<Lang, Dict> = { hu, en };
+export const LOCALES: Record<Lang, string> = { hu: 'hu-HU', en: 'en-GB' };
+
+export function makeT(lang: Lang) {
+  return (key: string, params?: Record<string, string | number>): string => {
+    let s = translations[lang][key] ?? translations.hu[key] ?? key;
+    if (params) for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, String(v));
+    return s;
+  };
+}

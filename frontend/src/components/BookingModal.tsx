@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePresetNames } from '../hooks/usePresetNames';
+import { useI18n } from '../i18n/I18nContext';
 
 interface Props {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Props) => {
+  const { t } = useI18n();
   const presetNames = usePresetNames();
   const [duration, setDuration] = useState(30);
   const [selectedName, setSelectedName] = useState('');
@@ -27,7 +29,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
   const handleBook = async () => {
     if (!canBook || isSubmitting) return;
     setIsSubmitting(true);
-    onToast('Foglalás rögzítése...', 'success');
+    onToast(t('booking.toast_saving'), 'success');
 
     const error = await onBook(duration, organizer, meetingTitle.trim(), isPrivate);
     setIsSubmitting(false);
@@ -36,7 +38,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
       const base = startTime ?? new Date();
       const end = new Date(base.getTime() + duration * 60000);
       const endStr = end.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-      onToast(`Foglalás rögzítve! Vége: ${endStr}`, 'success');
+      onToast(t('booking.toast_saved', { time: endStr }), 'success');
       setSelectedName('');
       setCustomName('');
       setShowCustom(false);
@@ -61,29 +63,29 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
         onClick={e => e.stopPropagation()}
       >
         <h2 className="text-4xl font-black text-white mb-1 uppercase tracking-tight">
-          {isFuture ? 'Előrefoglalás' : 'Terem foglalása'}
+          {isFuture ? t('booking.advance') : t('booking.book_room')}
         </h2>
         {isFuture && (
           <p className="text-green-400 text-lg font-bold mb-6">
-            Kezdés: {startTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+            {t('booking.start', { time: startTime.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) })}
           </p>
         )}
         {!isFuture && <div className="mb-6" />}
 
         {/* Meeting title */}
-        <p className="text-sm text-gray-500 uppercase tracking-widest mb-2">Megbeszélés neve (opcionális)</p>
+        <p className="text-sm text-gray-500 uppercase tracking-widest mb-2">{t('booking.title_label')}</p>
         <input
           type="text"
           value={meetingTitle}
           onChange={e => setMeetingTitle(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleBook()}
-          placeholder="pl. Design review, Sprint planning..."
+          placeholder={t('booking.title_ph')}
           autoFocus
           className="w-full bg-gray-800 text-white text-xl p-5 rounded-2xl border border-gray-700 focus:border-green-500 focus:outline-none mb-8"
         />
 
         {/* Duration */}
-        <p className="text-sm text-gray-500 uppercase tracking-widest mb-3">Időtartam</p>
+        <p className="text-sm text-gray-500 uppercase tracking-widest mb-3">{t('booking.duration')}</p>
         <div className="flex gap-4 mb-8">
           {[15, 30, 60].map(mins => (
             <button
@@ -95,13 +97,13 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
                   : 'bg-gray-800 text-white hover:bg-gray-700'
               }`}
             >
-              {mins} perc
+              {t('booking.minutes', { n: mins })}
             </button>
           ))}
         </div>
 
         {/* Name picker */}
-        <p className="text-sm text-gray-500 uppercase tracking-widest mb-3">Ki foglal?</p>
+        <p className="text-sm text-gray-500 uppercase tracking-widest mb-3">{t('booking.who')}</p>
         <div className="grid grid-cols-2 gap-3 mb-4">
           {presetNames.map(name => (
             <button
@@ -122,7 +124,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
               showCustom ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
-            Más név...
+            {t('booking.other_name')}
           </button>
         </div>
 
@@ -132,7 +134,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
             value={customName}
             onChange={e => setCustomName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleBook()}
-            placeholder="Teljes neve..."
+            placeholder={t('booking.full_name_ph')}
             autoFocus
             className="w-full bg-gray-800 text-white text-xl p-5 rounded-2xl border border-gray-700 focus:border-blue-500 focus:outline-none mb-4"
           />
@@ -150,8 +152,8 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
             isPrivate ? 'bg-blue-500 text-white' : 'bg-gray-700 text-transparent'
           }`}>✓</span>
           <span>
-            <span className="block text-white font-bold">Privát megbeszélés</span>
-            <span className="block text-gray-500 text-sm">A tárgy és a szervező nem jelenik meg a kijelzőn.</span>
+            <span className="block text-white font-bold">{t('booking.private_label')}</span>
+            <span className="block text-gray-500 text-sm">{t('booking.private_desc')}</span>
           </span>
         </button>
 
@@ -162,7 +164,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
             disabled={isSubmitting}
             className="flex-1 py-6 bg-gray-800 text-white font-black uppercase tracking-tight rounded-2xl hover:bg-gray-700 transition-colors"
           >
-            Mégse
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleBook}
@@ -173,7 +175,7 @@ export const BookingModal = ({ isOpen, onClose, onBook, onToast, startTime }: Pr
                 : 'bg-gray-700 text-gray-500 cursor-not-allowed'
             }`}
           >
-            {isSubmitting ? 'Foglalás...' : 'Megerősítés'}
+            {isSubmitting ? t('booking.booking') : t('booking.confirm')}
           </button>
         </div>
       </div>

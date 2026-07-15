@@ -1,6 +1,7 @@
 // frontend/src/components/StatusCard.tsx
 import { useState, useEffect } from 'react';
 import type { RoomStatus } from '../hooks/useRoomStatus';
+import { useI18n } from '../i18n/I18nContext';
 
 interface Props {
   status: RoomStatus;
@@ -17,6 +18,7 @@ const mmss = (ms: number) => {
 };
 
 export const StatusCard = ({ status, onOpenBookingModal, onCheckIn, onRelease, onExtend, onToast }: Props) => {
+  const { t } = useI18n();
   const isFree = !status.isOccupied;
   const checkedIn = !!status.currentMeetingCheckedIn;
   const needsCheckIn = !!status.checkInRequired;
@@ -48,23 +50,23 @@ export const StatusCard = ({ status, onOpenBookingModal, onCheckIn, onRelease, o
         isFree ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400'
       }`}>
         <h2 className="text-5xl font-black mb-2 uppercase tracking-tighter text-white">
-          {isFree ? 'Szabad' : 'Foglalt'}
+          {isFree ? t('common.free') : t('common.occupied')}
         </h2>
 
         {/* Occupied + not yet checked in → prompt check-in with a no-show countdown */}
         {!isFree && needsCheckIn && (
           <div className="mt-6 flex flex-col items-center">
-            <p className="text-white/80 font-bold mb-3">Megérkeztél?</p>
+            <p className="text-white/80 font-bold mb-3">{t('status.arrived')}</p>
             <button
-              onClick={() => run(onCheckIn, 'Sikeres check-in!')}
+              onClick={() => run(onCheckIn, t('status.toast_checkin'))}
               disabled={busy}
               className="px-10 py-5 bg-white text-red-600 rounded-2xl font-black text-xl shadow-xl uppercase active:scale-95 transition-transform hover:bg-gray-100 disabled:opacity-60"
             >
-              Check-in
+              {t('status.checkin')}
             </button>
             {releaseMsLeft !== null && releaseMsLeft > 0 && (
               <p className="mt-3 text-white/70 text-sm font-bold">
-                Automatikus felszabadítás: <span className="tabular-nums">{mmss(releaseMsLeft)}</span>
+                {t('status.auto_release')} <span className="tabular-nums">{mmss(releaseMsLeft)}</span>
               </p>
             )}
           </div>
@@ -73,7 +75,7 @@ export const StatusCard = ({ status, onOpenBookingModal, onCheckIn, onRelease, o
         {/* Checked in confirmation */}
         {!isFree && checkedIn && (
           <p className="mt-6 text-white/90 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
-            <span className="text-xl">✓</span> Visszaigazolva
+            <span className="text-xl">✓</span> {t('status.confirmed')}
           </p>
         )}
 
@@ -81,25 +83,25 @@ export const StatusCard = ({ status, onOpenBookingModal, onCheckIn, onRelease, o
         {!isFree && (
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <button
-              onClick={() => run(onRelease, 'Terem felszabadítva.')}
+              onClick={() => run(onRelease, t('status.toast_released'))}
               disabled={busy}
               className="px-4 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
             >
-              Vége
+              {t('status.end')}
             </button>
             <button
-              onClick={() => run(() => onExtend(15), '+15 perc hozzáadva.')}
+              onClick={() => run(() => onExtend(15), t('status.toast_ext15'))}
               disabled={busy}
               className="px-4 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
             >
-              +15 perc
+              {t('status.extend15')}
             </button>
             <button
-              onClick={() => run(() => onExtend(30), '+30 perc hozzáadva.')}
+              onClick={() => run(() => onExtend(30), t('status.toast_ext30'))}
               disabled={busy}
               className="px-4 py-3 bg-white/15 text-white rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-white/25 active:scale-95 transition-all disabled:opacity-60"
             >
-              +30 perc
+              {t('status.extend30')}
             </button>
           </div>
         )}
@@ -109,7 +111,7 @@ export const StatusCard = ({ status, onOpenBookingModal, onCheckIn, onRelease, o
             onClick={onOpenBookingModal}
             className="mt-8 px-10 py-5 bg-white text-green-700 rounded-2xl font-black text-xl shadow-xl hover:bg-gray-100 uppercase cursor-pointer"
           >
-            Azonnali foglalás
+            {t('status.book_now')}
           </button>
         )}
       </div>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 export const useCurrentTime = () => {
+  const { locale } = useI18n();
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -9,7 +11,7 @@ export const useCurrentTime = () => {
   }, []);
 
   return {
-    formattedTime: time.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }),
-    formattedDate: time.toLocaleDateString('hu-HU', { weekday: 'long', month: 'long', day: 'numeric' }),
+    formattedTime: time.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+    formattedDate: time.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' }),
   };
 };
